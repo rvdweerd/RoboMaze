@@ -26,7 +26,6 @@
 #include "Colors.h"
 #include "Surface.h"
 #include "Rect.h"
-#include "Config.h"
 #include <cassert>
 
 class Graphics
@@ -51,7 +50,7 @@ private:
 		float u,v;			// texcoords
 	};
 public:
-	Graphics( class HWNDKey& key,const Config& config );
+	Graphics( class HWNDKey& key,const class Config& config );
 	Graphics( const Graphics& ) = delete;
 	Graphics& operator=( const Graphics& ) = delete;
 	void EndFrame();

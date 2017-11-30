@@ -21,6 +21,7 @@
 #include "MainWindow.h"
 #include "Graphics.h"
 #include "DXErr.h"
+#include "Config.h"
 #include "ChiliException.h"
 #include <assert.h>
 #include <string>

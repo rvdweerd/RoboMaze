@@ -9,6 +9,7 @@
 #include "Font.h"
 #include "MainWindow.h"
 #include "Window.h"
+#include "Config.h"
 #include <atomic>
 
 class Simulator
@@ -22,10 +23,10 @@ public:
 		Count
 	};
 public:
-	Simulator( const std::string& map_filename )
+	Simulator( const std::string& map_filename,const Direction& dir )
 		:
 		map( map_filename ),
-		rob( map.GetStartPos() )
+		rob( map.GetStartPos(),dir )
 	{
 		stateTexts.resize( (int)State::Count );
 		stateTexts[(int)State::Success] = { { "Done" },Colors::White };
@@ -102,9 +103,9 @@ private:
 class HeadlessSimulator : public Simulator
 {
 public:
-	HeadlessSimulator( const std::string& map_filename )
+	HeadlessSimulator( const Config& config )
 		:
-		Simulator( map_filename )
+		Simulator( config.GetMapFilename(),config.GetStartDirection() )
 	{
 		future = std::async( [this]()
 		{
@@ -140,9 +141,9 @@ private:
 class VisualSimulator : public Simulator,public Window::SimstepControllable
 {
 public:
-	VisualSimulator( const std::string& map_string )
+	VisualSimulator( const Config& config )
 		:
-		Simulator( map_string ),
+		Simulator( config.GetMapFilename(),config.GetStartDirection() ),
 		ctrls( Graphics::GetScreenRect() )
 	{
 		auto pCamlockTemp = std::make_unique<Window::CamLockToggle>(
@@ -205,9 +206,9 @@ private:
 class DebugSimulator : public VisualSimulator
 {
 public:
-	DebugSimulator( const std::string& map_string )
+	DebugSimulator( const Config& config )
 		:
-		VisualSimulator( map_string ),
+		VisualSimulator( config ),
 		dc( map,rob ),
 		ai( dc )
 	{
@@ -255,9 +256,9 @@ private:
 class NormalSimulator : public VisualSimulator
 {
 public:
-	NormalSimulator( const std::string& map_string )
+	NormalSimulator( const Config& config )
 		:
-		VisualSimulator( map_string )
+		VisualSimulator( config )
 	{}
 	void OnTick() override
 	{

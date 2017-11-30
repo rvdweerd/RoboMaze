@@ -34,15 +34,15 @@ void Game::InitializeSimulation( const Config& config )
 	switch( config.GetSimulationMode() )
 	{
 	case Config::SimulationMode::Headless:
-		sim = std::make_unique<HeadlessSimulator>( "Maps\\" + config.GetMapFilename() );
+		sim = std::make_unique<HeadlessSimulator>( config );
 		break;
 	case Config::SimulationMode::Visual:
-		sim = std::make_unique<NormalSimulator>( "Maps\\" + config.GetMapFilename() );
+		sim = std::make_unique<NormalSimulator>( config );
 		break;
 	case Config::SimulationMode::VisualDebug:
 		if( RoboAIDebug::implemented )
 		{
-			sim = std::make_unique<DebugSimulator>( "Maps\\" + config.GetMapFilename() );
+			sim = std::make_unique<DebugSimulator>( config );
 		}
 		else
 		{

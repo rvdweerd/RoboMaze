@@ -3,6 +3,7 @@
 #include "TileMap.h"
 #include <random>
 #include <array>
+#include <cassert>
 
 // utility type to represent direction in the maze
 // feel free to use this, but it is not necessary
