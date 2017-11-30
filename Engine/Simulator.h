@@ -33,6 +33,7 @@ public:
 		stateTexts[(int)State::Failure] = { { "Fail" },Colors::Red };
 		stateTexts[(int)State::Working] = { { "Work" },Colors::Green };
 	}
+	virtual ~Simulator() = default;
 	int GetMoveCount() const
 	{
 		return move_count;
@@ -112,7 +113,7 @@ public:
 			RoboAI ai;
 			FrameTimer ft;
 
-			while( !Finished() )
+			while( !Finished() && !dying )
 			{
 				const auto view = rob.GetView( map );
 				ft.Mark();
@@ -133,9 +134,15 @@ public:
 			Colors::White,gfx
 		);
 	}
+	virtual ~HeadlessSimulator()
+	{
+		dying = true;
+		future.get();
+	}
 private:
 	float workingTime = 0.0f;
 	std::future<void> future;
+	std::atomic<bool> dying = false;
 };
 
 class VisualSimulator : public Simulator,public Window::SimstepControllable
