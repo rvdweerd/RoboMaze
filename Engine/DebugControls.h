@@ -4,6 +4,9 @@
 #include "TileMap.h"
 #include <thread>
 
+// used by debug visualization version of AI to visualize the algorithm as it runs
+// also can be used in debug to get information about the actual state of the maze
+// for whatever reason
 class DebugControls
 {
 public:
@@ -12,6 +15,8 @@ public:
 		map( map ),
 		robo( robo )
 	{}
+	DebugControls( const DebugControls& ) = delete;
+	DebugControls& operator=( const DebugControls& ) = delete;
 	void MarkAt( const Vei2& pos,Color color )
 	{
 		map.SetColorAt( pos,color );
@@ -28,6 +33,8 @@ public:
 	{
 		MarkAll( { 0,0,0,0 } );
 	}
+	// pass a functor that takes ( Vei2,DebugControls& )
+	// will run that functor for every tile in map
 	template<typename F>
 	void ForEach( F func )
 	{
@@ -55,14 +62,20 @@ public:
 	{
 		return robo.GetDirection();
 	}
+	// returns lock object
+	// prevents graphics from rendering while lock is held
 	auto AcquireGfxLock() const
 	{
 		return std::unique_lock<std::mutex>( mutex_gfx );
 	}
+	// ignore: called by engine
 	void SignalTick() const
 	{
 		cv.notify_all();
 	}
+	// wait for a tick to be signaled by engine
+	// tick speed is related to UI slider
+	// use this to control the speed of your algorithm's visualization animation
 	void WaitOnTick() const
 	{
 		std::unique_lock<std::mutex> lock( mutex_tick );

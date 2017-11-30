@@ -4,6 +4,10 @@
 #include <random>
 #include <array>
 
+// utility type to represent direction in the maze
+// feel free to use this, but it is not necessary
+// unless you are using GetRobotDirection from the
+// DebugControls
 class Direction
 {
 public:
