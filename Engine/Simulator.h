@@ -11,6 +11,8 @@
 #include "Window.h"
 #include "Config.h"
 #include <atomic>
+#include <deque>
+#include <unordered_set>
 
 class Simulator
 {
@@ -26,7 +28,8 @@ public:
 	Simulator( const std::string& map_filename,const Direction& dir )
 		:
 		map( map_filename ),
-		rob( map.GetStartPos(),dir )
+		rob( map.GetStartPos(),dir ),
+		goalReachable( ComputeGoalReachability() )
 	{
 		stateTexts.resize( (int)State::Count );
 		stateTexts[(int)State::Success] = { { "Done" },Colors::White };
@@ -61,8 +64,53 @@ public:
 	{
 		return map.At( rob.GetPos() ) == TileMap::TileType::Goal;
 	}
-	bool GoalUnreachable() const
+	bool ComputeGoalReachability() const
 	{
+		// create queue for 'frontier'
+		std::deque<Vei2> frontier;
+
+		// hash function for positions
+		struct Vei2Hash
+		{
+			size_t operator()( const Vei2& pos ) const
+			{
+				const std::hash<int> hasher;
+				const size_t seed = hasher( pos.x );
+				return seed ^ (hasher( pos.y ) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+			}
+		};
+
+		// set of closed nodes (reserve a decent amount of space)
+		std::unordered_set<Vei2,Vei2Hash> closed;
+		closed.reserve( map.GetGridHeight() * map.GetGridWidth() );
+
+		// add current tile to frontier to0 start the ball rollin
+		frontier.push_back( rob.GetPos() );
+		closed.insert( rob.GetPos() );
+
+		while( !frontier.empty() )
+		{
+			const auto base = frontier.front();
+			frontier.pop_front();
+
+			auto dir = Direction::Up();
+			for( int i = 0; i < 4; i++,dir.RotateClockwise() )
+			{
+				const auto nodePos = base + dir;
+				const auto node = map.At( nodePos );
+				if( node == TileMap::TileType::Goal )
+				{
+					// goal is reachable
+					return true;
+				}
+				else if( node == TileMap::TileType::Floor && closed.find( nodePos ) == closed.cend() )
+				{
+					frontier.push_back( nodePos );
+					closed.insert( nodePos );
+				}
+			}
+		}
+		// cannot reach goal
 		return false;
 	}
 	bool Finished() const
@@ -77,7 +125,7 @@ public:
 	{
 		if( action == Robo::Action::Done )
 		{
-			if( GoalReached() || GoalUnreachable() )
+			if( GoalReached() || !goalReachable )
 			{
 				state = State::Success;
 			}
@@ -96,6 +144,7 @@ protected:
 	Robo rob;
 	Font font = Font( "Images\\Fixedsys16x28.bmp" );
 private:
+	bool goalReachable;
 	int move_count = 0;
 	State state = State::Working;
 	std::vector<std::pair<std::string,Color>> stateTexts;
@@ -128,7 +177,7 @@ public:
 	void Draw( Graphics& gfx ) const override
 	{
 		Simulator::Draw( gfx );
-		font.DrawText( 
+		font.DrawText(
 			std::to_string( workingTime ),
 			{ Graphics::GetScreenRect().left + 5,Graphics::GetScreenRect().bottom - 30 },
 			Colors::White,gfx
@@ -155,12 +204,12 @@ public:
 	{
 		auto pCamlockTemp = std::make_unique<Window::CamLockToggle>(
 			RectI{
-				350,420,
-				Graphics::GetScreenRect().bottom - 50,
-				Graphics::GetScreenRect().bottom
-			},
+			350,420,
+			Graphics::GetScreenRect().bottom - 50,
+			Graphics::GetScreenRect().bottom
+		},
 			font
-		);
+			);
 		{
 			auto region = ctrls.GetRegion();
 			region.bottom -= 50;
@@ -250,13 +299,16 @@ public:
 	~DebugSimulator() override
 	{
 		using namespace std::chrono_literals;
-		// continuously signal go-ahead while future not ready
-		while( future.wait_for( 500us ) != std::future_status::ready )
+		if( future.valid() )
 		{
-			dc.SignalTick();
+			// continuously signal go-ahead while future not ready
+			while( future.wait_for( 500us ) != std::future_status::ready )
+			{
+				dc.SignalTick();
+			}
+			// complete the future
+			future.get();
 		}
-		// complete the future
-		future.get();
 	}
 private:
 	void LaunchAI()
