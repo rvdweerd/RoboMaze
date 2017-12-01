@@ -255,8 +255,8 @@ private:
 		);
 	}
 private:
-	RoboAIDebug ai;
 	DebugControls dc;
+	RoboAIDebug ai;
 	std::future<Robo::Action> future;
 };
 
