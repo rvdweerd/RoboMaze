@@ -19,29 +19,29 @@ inline Vei2 GetRotated90( const Vei2& v,int angle )
 	switch( angle )
 	{
 	case -3:
-		vo.x = v.y;
-		vo.y = -v.x;
+		vo.x = -v.y;
+		vo.y = v.x;
 		break;
 	case -2:
 		vo = -vo;
 		break;
 	case -1:
-		vo.x = -v.y;
-		vo.y = v.x;
+		vo.x = v.y;
+		vo.y = -v.x;
 		break;
 	case 0:
 		vo = v;
 		break;
 	case 1:
-		vo.x = v.y;
-		vo.y = -v.x;
+		vo.x = -v.y;
+		vo.y = v.x;
 		break;
 	case 2:
 		vo = -vo;
 		break;
 	case 3:
-		vo.x = -v.y;
-		vo.y = v.x;
+		vo.x = v.y;
+		vo.y = -v.x;
 		break;
 	default:
 		assert( "Bad angle in Dir rotation!" && false );
@@ -287,7 +287,6 @@ public:
 	{
 		// prime the pathing pump
 		path.push_back( pos + dir );
-
 	}
 	// this signals to the system whether the debug AI can be used
 	static constexpr bool implemented = true;
