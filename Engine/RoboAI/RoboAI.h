@@ -4,6 +4,51 @@
 #include <random>
 #include <deque>
 
+
+// returns angle in units of pi/2 (90deg you pleb)
+inline int GetAngleBetween( const Direction& d1,const Direction& d2 )
+{
+	constexpr std::array<int,4> map = { 0,2,3,1 };
+	return map[d2.GetIndex()] - map[d1.GetIndex()];
+}
+
+// angle is in units of pi/2 (90deg you pleb)
+inline Vei2 GetRotated90( const Vei2& v,int angle )
+{
+	Vei2 vo;
+	switch( angle )
+	{
+	case -3:
+		vo.x = v.y;
+		vo.y = -v.x;
+		break;
+	case -2:
+		vo = -vo;
+		break;
+	case -1:
+		vo.x = -v.y;
+		vo.y = v.x;
+		break;
+	case 0:
+		vo = v;
+		break;
+	case 1:
+		vo.x = v.y;
+		vo.y = -v.x;
+		break;
+	case 2:
+		vo = -vo;
+		break;
+	case 3:
+		vo.x = -v.y;
+		vo.y = v.x;
+		break;
+	default:
+		assert( "Bad angle in Dir rotation!" && false );
+	}
+	return vo;
+}
+
 // demo of how to use DebugControls for visualization
 class Djikslide
 {
@@ -237,10 +282,12 @@ public:
 		:
 		nodes( gridWidth * gridHeight ),
 		pos( gridWidth / 2,gridHeight / 2 ), // start in middle
-		dc( dc )
+		dc( dc ),
+		angle( GetAngleBetween( dir,dc.GetRobotDirection() ) )
 	{
 		// prime the pathing pump
 		path.push_back( pos + dir );
+
 	}
 	// this signals to the system whether the debug AI can be used
 	static constexpr bool implemented = true;
@@ -381,11 +428,11 @@ private:
 	}
 	Vei2 ToGameSpace( const Vei2& pos_in ) const
 	{
-		return (pos_in - pos) + dc.GetRobotPosition();
+		return GetRotated90( pos_in - pos,angle ) + dc.GetRobotPosition();
 	}
 	Vei2 ToMapSpace( const Vei2& pos_in ) const
 	{
-		return (pos_in - dc.GetRobotPosition()) + pos;
+		return GetRotated90( pos_in - dc.GetRobotPosition(),-angle ) + pos;
 	}
 	void VisualInit()
 	{
@@ -417,6 +464,7 @@ private:
 	std::vector<Vei2> path;
 	Direction dir = Direction::Up();
 	std::vector<Node> nodes;
+	int angle;
 };
 
 // if you name your classes different than RoboAI/RoboAIDebug, use typedefs like these
