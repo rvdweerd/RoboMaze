@@ -307,7 +307,11 @@ public:
 		if( At( path.back() ).GetType() != TT::Invalid )
 		{
 			// compute new path
-			ComputePath();
+			if( !ComputePath() )
+			{
+				// if ComputePath() returns false, impossible to reach goal
+				return Action::Done;
+			}
 		}
 		// find our position in path sequence
 		const auto i = std::find( path.begin(),path.end(),pos );
@@ -315,7 +319,7 @@ public:
 		return MoveTo( *std::next( i ) );
 	}
 private:
-	void ComputePath()
+	bool ComputePath()
 	{
 		{
 			const auto lock = dc.AcquireGfxLock();
@@ -369,7 +373,7 @@ private:
 					path.push_back( trace );
 					// gotta reverse that shit
 					std::reverse( path.begin(),path.end() );
-					return;
+					return true;
 				}
 				else if( node.GetType() == TT::Floor )
 				{
@@ -383,7 +387,8 @@ private:
 				}
 			}
 		}
-		assert( "Terrible" && false );
+		// cannot reach goal
+		return false;
 	}
 	void UpdateMap( const std::array<TT,3>& view )
 	{
@@ -470,7 +475,7 @@ private:
 typedef Djikslide RoboAI;
 typedef Djikslide_Debug RoboAIDebug;
 
-// TODO: Fix markings for non-Up starts
 // TODO: Fix performance for large max map size (block-clean min-max)
 // TODO: test perf walk-clean vs. block clean vs. map
 // TODO: implement non-slide (turn counting) dijkturn with map
+// TODO: propagate unreachable and rel-dir fixes to non debug ver
