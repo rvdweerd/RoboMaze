@@ -134,7 +134,7 @@ public:
 			Colors::White,gfx
 		);
 	}
-	virtual ~HeadlessSimulator()
+	~HeadlessSimulator() override
 	{
 		dying = true;
 		worker.join();
@@ -246,6 +246,17 @@ public:
 			// signal the future
 			dc.SignalTick();
 		}
+	}
+	~DebugSimulator() override
+	{
+		using namespace std::chrono_literals;
+		// continuously signal go-ahead while future not ready
+		while( future.wait_for( 500us ) != std::future_status::ready )
+		{
+			dc.SignalTick();
+		}
+		// complete the future
+		future.get();
 	}
 private:
 	void LaunchAI()
