@@ -108,7 +108,7 @@ public:
 		:
 		Simulator( config.GetMapFilename(),config.GetStartDirection() )
 	{
-		future = std::async( [this]()
+		worker = std::thread( [this]()
 		{
 			RoboAI ai;
 			FrameTimer ft;
@@ -137,11 +137,11 @@ public:
 	virtual ~HeadlessSimulator()
 	{
 		dying = true;
-		future.get();
+		worker.join();
 	}
 private:
 	float workingTime = 0.0f;
-	std::future<void> future;
+	std::thread worker;
 	std::atomic<bool> dying = false;
 };
 
@@ -263,10 +263,7 @@ private:
 class NormalSimulator : public VisualSimulator
 {
 public:
-	NormalSimulator( const Config& config )
-		:
-		VisualSimulator( config )
-	{}
+	using VisualSimulator::VisualSimulator;
 	void OnTick() override
 	{
 		if( !Finished() )
