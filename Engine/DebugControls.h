@@ -3,6 +3,8 @@
 #include "Robo.h"
 #include "TileMap.h"
 #include <thread>
+#include <condition_variable>
+#include <mutex>
 
 // used by debug visualization version of AI to visualize the algorithm as it runs
 // also can be used in debug to get information about the actual state of the maze
