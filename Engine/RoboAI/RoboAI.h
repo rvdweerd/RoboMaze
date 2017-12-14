@@ -23,7 +23,7 @@ inline Vei2 GetRotated90( const Vei2& v,int angle )
 		vo.y = v.x;
 		break;
 	case -2:
-		vo = -vo;
+		vo = -v;
 		break;
 	case -1:
 		vo.x = v.y;
@@ -37,7 +37,7 @@ inline Vei2 GetRotated90( const Vei2& v,int angle )
 		vo.y = v.x;
 		break;
 	case 2:
-		vo = -vo;
+		vo = -v;
 		break;
 	case 3:
 		vo.x = v.y;

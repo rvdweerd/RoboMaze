@@ -166,7 +166,7 @@ public:
 	}
 	T& At( int x,int y )
 	{
-		assert( Contains( {} ) );
+		assert( Contains( { x,y } ) );
 		return (*this)[x + y * width];
 	}
 	bool Contains( const Vei2& pos ) const
