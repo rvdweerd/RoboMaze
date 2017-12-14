@@ -113,3 +113,17 @@ public:
 typedef Vec2_<float> Vec2;
 typedef Vec2_<int> Vei2;
 typedef Vec2_<double> Ved2;
+
+namespace std
+{
+	template <>
+	struct hash<Vei2>
+	{
+		size_t operator()( const Vei2& v ) const
+		{
+			std::hash<int> hasher;
+			const size_t seed = hasher( v.x );
+			return seed ^ (hasher( v.y ) + 0x9e3779b9u + (seed << 6) + (seed >> 2));
+		}
+	};
+}

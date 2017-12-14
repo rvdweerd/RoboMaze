@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Robo.h"
 #include "ChiliWin.h"
+#include "Robo.h"
 #include <string>
+#include <cassert>
 
 class Config
 {
@@ -14,8 +15,14 @@ public:
 		VisualDebug,
 		Count
 	};
+	enum class MapMode
+	{
+		File,
+		Procedural,
+		Count
+	};
 public:
-	Config( const std::string& filename )
+	explicit Config( const std::string& filename )
 	{
 		using namespace std::string_literals;
 		char buffer[1024];
@@ -29,31 +36,47 @@ public:
 		// get full path to ini file
 		GetCurrentDirectoryA( sizeof( buffer ),buffer );
 		const std::string full_ini_path = buffer + "\\"s + filename;
-		// load mode setting
-		mode = (SimulationMode)GetPrivateProfileIntA( "simulation","mode",-1,full_ini_path.c_str() );
-		ThrowIfFalse( (int)mode >= 0 && (int)mode < (int)SimulationMode::Count,
-			"Bad simulation mode: " + std::to_string( (int)mode )
+		// load sim mode setting
+		sim_mode = (SimulationMode)GetPrivateProfileIntA( "simulation","sim_mode",-1,full_ini_path.c_str() );
+		ThrowIfFalse( (int)sim_mode >= 0 && (int)sim_mode < (int)SimulationMode::Count,
+			"Bad simulation mode: " + std::to_string( (int)sim_mode )
 		);
 		// load map filename
 		GetPrivateProfileStringA( "simulation","map",nullptr,buffer,sizeof( buffer ),full_ini_path.c_str() );
 		map_filename = "Maps\\"s + buffer;
 		ThrowIfFalse( map_filename != "","Filename not set." );
+		// load screen width and height
+		screenWidth = GetPrivateProfileIntA( "display","screenwidth",-1,full_ini_path.c_str() );
+		screenHeight = GetPrivateProfileIntA( "display","screenheight",-1,full_ini_path.c_str() );
+		// load map mode setting
+		map_mode = (MapMode)GetPrivateProfileIntA( "simulation","map_mode",-1,full_ini_path.c_str() );
+		ThrowIfFalse( (int)map_mode >= 0 && (int)map_mode < (int)MapMode::Count,
+			"Bad map mode: " + std::to_string( (int)map_mode )
+		);
 		// load direction (Count signifies random)
 		dir = (Direction::Type)GetPrivateProfileIntA( "simulation","direction",-1,full_ini_path.c_str() );
 		ThrowIfFalse( (int)dir >= 0 && (int)dir <= (int)Direction::Type::Count,
 			"Bad start direction code: " + std::to_string( (int)dir )
 		);
-		// load screen width and height
-		screenWidth = GetPrivateProfileIntA( "display","screenwidth",-1,full_ini_path.c_str() );
-		screenHeight = GetPrivateProfileIntA( "display","screenheight",-1,full_ini_path.c_str() );
+		// load map width and height
+		mapWidth = GetPrivateProfileIntA( "simulation","map_width",-1,full_ini_path.c_str() );
+		mapHeight = GetPrivateProfileIntA( "simulation","map_height",-1,full_ini_path.c_str() );
+		roomTries = GetPrivateProfileIntA( "simulation","map_room",-1,full_ini_path.c_str() );
 	}
-	const std::string& GetMapFilename() const
+	std::string GetMapFilename() const
 	{
-		return map_filename;
+		// TODO: this is nasty (proc gen is outside of the sphere of this class, should be ctor
+		// the map directly in the sim of proc)
+		return (GetMapMode() == MapMode::Procedural) ?
+			"Maps\\map_proc.txt" : map_filename;
 	}
 	SimulationMode GetSimulationMode() const
 	{
-		return mode;
+		return sim_mode;
+	}
+	MapMode GetMapMode() const
+	{
+		return map_mode;
 	}
 	int GetScreenWidth() const
 	{
@@ -62,6 +85,21 @@ public:
 	int GetScreenHeight() const
 	{
 		return screenHeight;
+	}
+	int GetMapWidth() const
+	{
+		assert( map_mode == MapMode::Procedural );
+		return mapWidth;
+	}
+	int GetMapHeight() const
+	{
+		assert( map_mode == MapMode::Procedural );
+		return mapHeight;
+	}
+	int GetMapRoomTries() const
+	{
+		assert( map_mode == MapMode::Procedural );
+		return roomTries;
 	}
 	Direction GetStartDirection() const
 	{
@@ -87,7 +125,11 @@ public:
 	}
 private:
 	std::string map_filename;
-	SimulationMode mode;
+	SimulationMode sim_mode;
+	MapMode map_mode;
+	int mapWidth;
+	int mapHeight;
+	int roomTries;
 	int screenWidth;
 	int screenHeight;
 	Direction::Type dir;

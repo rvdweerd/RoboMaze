@@ -31,6 +31,12 @@ Game::Game( MainWindow& wnd,const Config& config )
 
 void Game::InitializeSimulation( const Config& config )
 {
+	if( config.GetMapMode() == Config::MapMode::Procedural )
+	{
+		TileMap proc( config.GetMapWidth(),config.GetMapHeight(),config.GetMapRoomTries() );
+		proc.Save( "Maps\\map_proc.txt" );
+	}
+
 	switch( config.GetSimulationMode() )
 	{
 	case Config::SimulationMode::Headless:
