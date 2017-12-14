@@ -283,10 +283,13 @@ public:
 		nodes( gridWidth * gridHeight ),
 		pos( gridWidth / 2,gridHeight / 2 ), // start in middle
 		dc( dc ),
-		angle( GetAngleBetween( dir,dc.GetRobotDirection() ) )
+		angle( GetAngleBetween( dir,dc.GetRobotDirection() ) ),
+		visit_extent( -1,-1,-1,-1 )
 	{
 		// prime the pathing pump
 		path.push_back( pos + dir );
+		VisualInit();
+		ResetExtents( pos );
 	}
 	// this signals to the system whether the debug AI can be used
 	static constexpr bool implemented = true;
@@ -299,8 +302,6 @@ public:
 			ClearPathMarkings();
 			return Action::Done;
 		}
-		// perform visualization init
-		VisualInit();
 		// first update map
 		UpdateMap( view );
 		// check if we have revealed the target unknown square
@@ -329,10 +330,15 @@ private:
 		std::deque<Vei2> frontier;
 
 		// clear costs
-		for( auto& node : nodes )
+		for( Vei2 cp = visit_extent.TopLeft(); cp.y <= visit_extent.bottom; cp.y++ )
 		{
-			node.ClearCost();
+			for( cp.x = visit_extent.left; cp.x <= visit_extent.right; cp.x++ )
+			{
+				At( cp ).ClearCost();
+			}
 		}
+
+		ResetExtents( pos );
 
 		// clear path sequence
 		path.clear();
@@ -340,6 +346,7 @@ private:
 		// add current tile to frontier to0 start the ball rollin
 		At( pos ).UpdateCost( 0 );
 		frontier.emplace_back( pos );
+		AdjustExtents( pos );
 
 		while( !frontier.empty() )
 		{
@@ -380,6 +387,7 @@ private:
 					if( node.UpdateCost( At( base ).GetCost() + 1,base ) )
 					{
 						frontier.push_back( nodePos );
+						AdjustExtents( nodePos );
 						// mark each tile visited by my dik
 						dc.MarkAt( ToGameSpace( nodePos ),{ Colors::Green,32 } );
 						dc.WaitOnTick();
@@ -457,18 +465,31 @@ private:
 			}
 		} );
 	}
+	void AdjustExtents( const Vei2& pos )
+	{
+		visit_extent.left = std::min( pos.x,visit_extent.left );
+		visit_extent.right = std::max( pos.x,visit_extent.right );
+		visit_extent.top = std::min( pos.y,visit_extent.top );
+		visit_extent.bottom = std::max( pos.y,visit_extent.bottom );
+	}
+	void ResetExtents( const Vei2& pos )
+	{
+		visit_extent = { pos.x + 1,pos.x - 1,pos.y + 1, pos.y - 1 };
+	}
 private:
 	DebugControls& dc;
 	bool visual_init_done = false;
 	// grid dimensions 2x the max dimensions
 	// (because we don't know where we start!)
-	static constexpr int gridWidth = 100;
-	static constexpr int gridHeight = 100;
+	static constexpr int gridWidth = 2000;
+	static constexpr int gridHeight = 2000;
 	Vei2 pos;
 	std::vector<Vei2> path;
 	Direction dir = Direction::Up();
 	std::vector<Node> nodes;
 	int angle;
+	// inclusive!
+	RectI visit_extent;
 };
 
 // if you name your classes different than RoboAI/RoboAIDebug, use typedefs like these
