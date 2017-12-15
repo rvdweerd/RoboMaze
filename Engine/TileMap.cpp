@@ -438,7 +438,7 @@ TileMap::TileMap( const Config& config )
 	{
 		return;
 	}
-	// scan to find start pos
+	// TODO: scan to find start pos (replace with random start pos)
 	for( Vei2 pos = { 0,0 }; pos.y < tiles.GetHeight(); pos.y++ )
 	{
 		for( pos.x = 0; pos.x < tiles.GetWidth(); pos.x++ )
@@ -446,10 +446,29 @@ TileMap::TileMap( const Config& config )
 			if( tiles.At( pos ).type == TileType::Floor )
 			{
 				start_pos = pos;
-				return;
 			}
 		}
 	}
-	// throw an error if not able to place the robo at a start pos
-	throw std::runtime_error( "Could not find a start pos!" );
+	// generate goal maybe if not alread done above
+	if( config.GetGoalMode() == Config::GoalMode::StartPosition )
+	{
+		tiles.At( start_pos ).type = TileType::Goal;
+	}
+	else if( config.GetGoalMode() == Config::GoalMode::Random )
+	{
+		std::uniform_int_distribution<int> pos_dist_x( 0,tiles.GetWidth() - 1 );
+		std::uniform_int_distribution<int> pos_dist_y( 0,tiles.GetHeight() - 1 );
+		while( true )
+		{
+			if( tiles.At( { pos_dist_x( rng ),pos_dist_y( rng ) } ).type == TileType::Floor )
+			{
+				tiles.At( { pos_dist_x( rng ),pos_dist_y( rng ) } ).type = TileType::Goal;
+				break;
+			}
+		}
+	}
+	else
+	{
+		assert( config.GetGoalMode() == Config::GoalMode::NoGoal );
+	}
 }
