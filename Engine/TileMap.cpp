@@ -1,15 +1,140 @@
 #include "TileMap.h"
 #include "Config.h"
 
-TileMap::TileMap( const Config & config )
+TileMap::TileMap( const std::string& filename,const Direction& sd )
+	:
+	pFloorSurf( std::make_unique<Surface>( "Images\\floor.bmp" ) ),
+	pWallSurf( std::make_unique<Surface>( "Images\\wall.bmp" ) ),
+	pGoalSurf( std::make_unique<Surface>( "Images\\goal.bmp" ) ),
+	tileWidth( pFloorSurf->GetWidth() ),
+	tileHeight( pFloorSurf->GetHeight() ),
+	start_dir( sd )
+{
+	const auto ThrowIfFalse = []( bool pred,const std::string& msg )
+	{
+		if( !pred )
+		{
+			throw std::runtime_error( "Tilemap load error.\n" + msg );
+		}
+	};
+
+	std::stringstream iss;
+	// load file into string stream buffer
+	{
+		std::ifstream file( filename );
+		ThrowIfFalse( file.good(),"File: '" + filename + "' could not be opened." );
+		iss << file.rdbuf();
+	}
+	// tile width init
+	assert( tileWidth == pWallSurf->GetWidth() );
+	assert( tileHeight == pWallSurf->GetHeight() );
+	assert( tileWidth == pGoalSurf->GetWidth() );
+	assert( tileHeight == pGoalSurf->GetHeight() );
+	// read in grid dimensions
+	int gridWidth;
+	int gridHeight;
+	{
+		iss >> gridWidth;
+		ThrowIfFalse( iss.good(),"Bad input reading grid width." );
+		ThrowIfFalse( gridWidth > 0 && gridWidth <= 1000,"Bad width: " + std::to_string( gridWidth ) );
+		iss >> gridHeight;
+		ThrowIfFalse( iss.good(),"Bad input reading grid height." );
+		ThrowIfFalse( gridHeight > 0 && gridHeight <= 1000,"Bad height: " + std::to_string( gridHeight ) );
+	}
+	// create working grid
+	Grid<Tile> tiles( gridWidth,gridHeight );
+	// read in start_pos
+	{
+		iss >> start_pos.x;
+		ThrowIfFalse( iss.good(),"Bad input reading start pos x." );
+		ThrowIfFalse( start_pos.x >= 0 && start_pos.x < gridWidth,"Bad start x: " + std::to_string( start_pos.x ) );
+		iss >> start_pos.y;
+		ThrowIfFalse( iss.good(),"Bad input reading start pos x." );
+		ThrowIfFalse( start_pos.y >= 0 && start_pos.y < gridHeight,"Bad start y: " + std::to_string( start_pos.y ) );
+	}
+	// read in tiles
+	{
+		using namespace std::string_literals;
+		tiles.reserve( gridWidth * gridHeight );
+		auto i = tiles.begin();
+		for( int y = 0; y < gridHeight; y++,i += tiles.GetWidth() )
+		{
+			std::string line;
+			iss >> line;
+			ThrowIfFalse( line.length() == gridWidth,"Bad row width in tilemap at line " + std::to_string( y ) + "." );
+			std::transform(
+				line.begin(),line.end(),
+				i,
+				[=]( char c ) -> Tile
+			{
+				switch( c )
+				{
+				case '#':
+					return{ TileType::Wall };
+				case '.':
+					return{ TileType::Floor };
+				case '%':
+					return{ TileType::Goal };
+				default:
+					ThrowIfFalse( false,"Bad tile: '"s + c + "' in line "s + std::to_string( y ) + "."s );
+					return TileType::Wall;
+				}
+			} );
+		}
+		ThrowIfFalse( iss.get() == -1 && iss.eof(),"Unexpected token at end of tilemap / wrong map height." );
+	}
+	// move working grid into map grid
+	this->tiles = std::move( tiles );
+}
+
+TileMap::TileMap( const Config& config )
 	:
 	tiles( config.GetMapWidth(),config.GetMapHeight() ),
 	pFloorSurf( std::make_unique<Surface>( "Images\\floor.bmp" ) ),
 	pWallSurf( std::make_unique<Surface>( "Images\\wall.bmp" ) ),
 	pGoalSurf( std::make_unique<Surface>( "Images\\goal.bmp" ) ),
 	tileWidth( pFloorSurf->GetWidth() ),
-	tileHeight( pFloorSurf->GetHeight() )
+	tileHeight( pFloorSurf->GetHeight() ),
+	start_dir( (Direction::Type)std::uniform_int_distribution<int>{ 0,3 }( std::random_device{} ) )
 {
+	assert( config.GetMapMode() == Config::MapMode::Procedural );
+	// angle is in units of pi/2 (90deg you pleb)
+	const auto GetRotated90 = []( const Vei2& v,int angle )
+	{
+		Vei2 vo;
+		switch( angle )
+		{
+		case -3:
+			vo.x = -v.y;
+			vo.y = v.x;
+			break;
+		case -2:
+			vo = -v;
+			break;
+		case -1:
+			vo.x = v.y;
+			vo.y = -v.x;
+			break;
+		case 0:
+			vo = v;
+			break;
+		case 1:
+			vo.x = -v.y;
+			vo.y = v.x;
+			break;
+		case 2:
+			vo = -v;
+			break;
+		case 3:
+			vo.x = v.y;
+			vo.y = -v.x;
+			break;
+		default:
+			assert( "Bad angle in Dir rotation!" && false );
+		}
+		return vo;
+	};
+
 	const int min_room_size = 4;
 	const int max_room_size = 20;
 	std::uniform_int_distribution<int> room_dist( min_room_size,max_room_size );
@@ -19,7 +144,8 @@ TileMap::TileMap( const Config & config )
 	int cur_id = 0;
 
 	// first place goal room if room mode active
-	if( config.GetGoalMode() == Config::GoalMode::RoomCenter )
+	if( config.GetGoalMode() == Config::GoalMode::RoomCenter ||
+		config.GetGoalMode() == Config::GoalMode::InView )
 	{
 		// goal room is 9x9 (could make this vary in the future)
 		const int width = 11;
@@ -42,8 +168,47 @@ TileMap::TileMap( const Config & config )
 				compartments[cur_id].push_back( pos );
 			}
 		}
+		// place goal in one of two ways
+		if( config.GetGoalMode() == Config::GoalMode::RoomCenter )
+		{
+			tiles.At( Vei2{ xLeft,yTop } + Vei2{ 5,5 } ).type = TileType::Goal;
+		}
+		else // must be InView
+		{
+			// place chili first
+			start_pos = Vei2{ xLeft,yTop } + Vei2{ 5,5 };
+			// then place goal
+			const int angle = std::bernoulli_distribution{}(rng) ? 1 : -1;
+			tiles.At( start_pos + start_dir + GetRotated90( start_dir,angle ) ).type = TileType::Goal;
+		}
+		// update id
+		cur_id++;
+	}
+	else if( config.GetGoalMode() == Config::GoalMode::InView )
+	{
+		// goal room is 9x9 (could make this vary in the future)
+		const int width = 11;
+		const int height = 11;
+		std::uniform_int_distribution<int> pos_dist_x( 0,tiles.GetWidth() - width - 1 );
+		std::uniform_int_distribution<int> pos_dist_y( 0,tiles.GetHeight() - height - 1 );
+
+		// add to compartment map
+		compartments.emplace( cur_id,std::vector<Vei2>{} );
+		// generate top left corner pos
+		const int xLeft = pos_dist_x( rng );
+		const int yTop = pos_dist_y( rng );
+		// fill with floor
+		for( Vei2 pos = { 0,yTop + 1 }; pos.y < yTop + height - 1; pos.y++ )
+		{
+			for( pos.x = xLeft + 1; pos.x < xLeft + width - 1; pos.x++ )
+			{
+				tiles.At( pos ).type = TileType::Floor;
+				compartmentIds.At( pos ) = cur_id;
+				compartments[cur_id].push_back( pos );
+			}
+		}
 		// place goal
-		tiles.At( Vei2{ xLeft,yTop } + Vei2{ 5,5 } ).type = TileType::Goal;
+		tiles.At( Vei2{ xLeft,yTop } +Vei2{ 5,5 } ).type = TileType::Goal;
 		// update id
 		cur_id++;
 	}
@@ -268,8 +433,11 @@ TileMap::TileMap( const Config & config )
 		}
 	}
 	// (maybe generate flair here)
-	// TODO: add goal
-	// TODO: file might need to determine accessibility? or something? (why is crashing when not found?)
+	// if InView mode then don't worry about finding start
+	if( config.GetGoalMode() == Config::GoalMode::InView )
+	{
+		return;
+	}
 	// scan to find start pos
 	for( Vei2 pos = { 0,0 }; pos.y < tiles.GetHeight(); pos.y++ )
 	{
@@ -282,5 +450,6 @@ TileMap::TileMap( const Config & config )
 			}
 		}
 	}
+	// throw an error if not able to place the robo at a start pos
 	throw std::runtime_error( "Could not find a start pos!" );
 }

@@ -28,7 +28,7 @@ public:
 	Simulator( const Config& config )
 		:
 		map( LoadMap( config ) ),
-		rob( map.GetStartPos(),config.GetStartDirection() ),
+		rob( map.GetStartPos(),map.GetStartDirection() ),
 		goalReachable( ComputeGoalReachability() )
 	{
 		stateTexts.resize( (int)State::Count );
@@ -152,7 +152,7 @@ private:
 		}
 		else
 		{
-			return TileMap( config.GetMapFilename() );
+			return TileMap( config.GetMapFilename(),config.GetStartDirection() );
 		}
 	}
 private:

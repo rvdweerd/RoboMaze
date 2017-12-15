@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ChiliWin.h"
-#include "Robo.h"
+#include "Direction.h"
 #include <string>
 #include <cassert>
 
@@ -125,8 +125,13 @@ public:
 		assert( map_mode == MapMode::Procedural );
 		return roomTries;
 	}
+	bool IsRandomStartDirection() const
+	{
+		return dir == Direction::Type::Count;
+	}
 	Direction GetStartDirection() const
 	{
+		assert( !IsRandomStartDirection() );
 		switch( dir )
 		{
 		case Direction::Type::Up:
@@ -137,11 +142,6 @@ public:
 			return Direction::Left();
 		case Direction::Type::Right:
 			return Direction::Right();
-		case Direction::Type::Count:
-		{
-			std::uniform_int_distribution<int> d( 0,3 );
-			return Direction( (Direction::Type)d( std::random_device{} ) );
-		}
 		default:
 			assert( "Bad start direction!" && false );
 			return Direction::Up();

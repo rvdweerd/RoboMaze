@@ -144,6 +144,7 @@
     <ClInclude Include="COMInitializer.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="DebugControls.h" />
+    <ClInclude Include="Direction.h" />
     <ClInclude Include="Simulator.h" />
     <ClInclude Include="DXErr.h" />
     <ClInclude Include="Font.h" />

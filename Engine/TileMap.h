@@ -3,6 +3,7 @@
 #include "Surface.h"
 #include "Graphics.h"
 #include "SpriteEffect.h"
+#include "Direction.h"
 #include <memory>
 #include <vector>
 #include <sstream>
@@ -239,90 +240,7 @@ private:
 		Color c;
 	};
 public:
-	TileMap( const std::string& filename )
-		:
-		pFloorSurf( std::make_unique<Surface>( "Images\\floor.bmp" ) ),
-		pWallSurf( std::make_unique<Surface>( "Images\\wall.bmp" ) ),
-		pGoalSurf( std::make_unique<Surface>( "Images\\goal.bmp" ) ),
-		tileWidth( pFloorSurf->GetWidth() ),
-		tileHeight( pFloorSurf->GetHeight() )
-	{
-		const auto ThrowIfFalse = []( bool pred,const std::string& msg )
-		{
-			if( !pred )
-			{
-				throw std::runtime_error( "Tilemap load error.\n" + msg );
-			}
-		};
-
-		std::stringstream iss;
-		// load file into string stream buffer
-		{
-			std::ifstream file( filename );
-			ThrowIfFalse( file.good(),"File: '" + filename + "' could not be opened." );
-			iss << file.rdbuf();
-		}
-		// tile width init
-		assert( tileWidth == pWallSurf->GetWidth() );
-		assert( tileHeight == pWallSurf->GetHeight() );
-		assert( tileWidth == pGoalSurf->GetWidth() );
-		assert( tileHeight == pGoalSurf->GetHeight() );
-		// read in grid dimensions
-		int gridWidth;
-		int gridHeight;
-		{
-			iss >> gridWidth;
-			ThrowIfFalse( iss.good(),"Bad input reading grid width." );
-			ThrowIfFalse( gridWidth > 0 && gridWidth <= 1000,"Bad width: " + std::to_string( gridWidth ) );
-			iss >> gridHeight;
-			ThrowIfFalse( iss.good(),"Bad input reading grid height." );
-			ThrowIfFalse( gridHeight > 0 && gridHeight <= 1000,"Bad height: " + std::to_string( gridHeight ) );
-		}
-		// create working grid
-		Grid<Tile> tiles( gridWidth,gridHeight );
-		// read in start_pos
-		{
-			iss >> start_pos.x;
-			ThrowIfFalse( iss.good(),"Bad input reading start pos x." );
-			ThrowIfFalse( start_pos.x >= 0 && start_pos.x < gridWidth,"Bad start x: " + std::to_string( start_pos.x ) );
-			iss >> start_pos.y;
-			ThrowIfFalse( iss.good(),"Bad input reading start pos x." );
-			ThrowIfFalse( start_pos.y >= 0 && start_pos.y < gridHeight,"Bad start y: " + std::to_string( start_pos.y ) );
-		}
-		// read in tiles
-		{
-			using namespace std::string_literals;
-			tiles.reserve( gridWidth * gridHeight );
-			auto i = tiles.begin();
-			for( int y = 0; y < gridHeight; y++,i += tiles.GetWidth() )
-			{
-				std::string line;
-				iss >> line;
-				ThrowIfFalse( line.length() == gridWidth,"Bad row width in tilemap at line " + std::to_string( y ) + "." );
-				std::transform(
-					line.begin(),line.end(),
-					i,
-					[=]( char c ) -> Tile
-				{
-					switch( c )
-					{
-					case '#':
-						return{ TileType::Wall };
-					case '.':
-						return{ TileType::Floor };
-					case '%':
-						return{ TileType::Goal };
-					default:
-						ThrowIfFalse( false,"Bad tile: '"s + c + "' in line "s + std::to_string( y ) + "."s );
-						return TileType::Wall;
-					}
-				} );
-			}
-			ThrowIfFalse( iss.get() == -1 && iss.eof(),"Unexpected token at end of tilemap / wrong map height." );
-		}
-		// move working grid into map grid
-		this->tiles = std::move( tiles );
-	}
+	TileMap( const std::string& filename,const class Direction& sd );
 	// procedurally generated map
 	TileMap( const class Config& config );
 	const TileType& At( const Vei2& pos ) const
@@ -421,6 +339,10 @@ public:
 			}
 		}
 	}
+	Direction GetStartDirection() const
+	{
+		return start_dir;
+	}
 	RectI GetMapBounds() const
 	{
 		return{ 0,tiles.GetWidth()*tileWidth,0,tiles.GetHeight()*tileHeight };
@@ -475,6 +397,7 @@ private:
 	int tileHeight;
 	Grid<Tile> tiles;
 	Vei2 start_pos;
+	Direction start_dir;
 };
 
 // TODO: start pos in map / multiple start pos
