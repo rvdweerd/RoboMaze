@@ -242,7 +242,7 @@ private:
 public:
 	TileMap( const std::string& filename,const class Direction& sd );
 	// procedurally generated map
-	TileMap( const class Config& config );
+	TileMap( const class Config& config,std::mt19937& rng );
 	const TileType& At( const Vei2& pos ) const
 	{
 		return tiles.At( pos ).type;

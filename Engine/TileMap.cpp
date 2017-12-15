@@ -1,5 +1,6 @@
 #include "TileMap.h"
 #include "Config.h"
+#include <random>
 
 TileMap::TileMap( const std::string& filename,const Direction& sd )
 	:
@@ -87,7 +88,7 @@ TileMap::TileMap( const std::string& filename,const Direction& sd )
 	this->tiles = std::move( tiles );
 }
 
-TileMap::TileMap( const Config& config )
+TileMap::TileMap( const Config& config,std::mt19937& rng )
 	:
 	tiles( config.GetMapWidth(),config.GetMapHeight() ),
 	pFloorSurf( std::make_unique<Surface>( "Images\\floor.bmp" ) ),
@@ -95,7 +96,7 @@ TileMap::TileMap( const Config& config )
 	pGoalSurf( std::make_unique<Surface>( "Images\\goal.bmp" ) ),
 	tileWidth( pFloorSurf->GetWidth() ),
 	tileHeight( pFloorSurf->GetHeight() ),
-	start_dir( (Direction::Type)std::uniform_int_distribution<int>{ 0,3 }( std::random_device{} ) )
+	start_dir( (Direction::Type)std::uniform_int_distribution<int>{ 0,3 }( rng ) )
 {
 	assert( config.GetMapMode() == Config::MapMode::Procedural );
 	// angle is in units of pi/2 (90deg you pleb)
@@ -138,7 +139,6 @@ TileMap::TileMap( const Config& config )
 	const int min_room_size = 4;
 	const int max_room_size = 20;
 	std::uniform_int_distribution<int> room_dist( min_room_size,max_room_size );
-	std::mt19937 rng( std::random_device{}() );
 	Grid<int> compartmentIds( tiles.GetWidth(),tiles.GetHeight(),-1 );
 	std::unordered_map<int,std::vector<Vei2>> compartments;
 	int cur_id = 0;
@@ -342,7 +342,7 @@ TileMap::TileMap( const Config& config )
 		const int off = std::uniform_int_distribution<int>{ 0,(int)compartments.size() - 1 }(rng);
 		const int iMerge = std::next( compartments.begin(),off )->first;
 		auto& merging = compartments[iMerge];
-		std::random_shuffle( merging.begin(),merging.end() );
+		std::shuffle( merging.begin(),merging.end(),rng );
 		// DoorTile: tile in comp that connects to door
 		int iDoorTile = 0;
 		for( ; iDoorTile < merging.size(); iDoorTile++ )
@@ -438,14 +438,17 @@ TileMap::TileMap( const Config& config )
 	{
 		return;
 	}
-	// TODO: scan to find start pos (replace with random start pos)
-	for( Vei2 pos = { 0,0 }; pos.y < tiles.GetHeight(); pos.y++ )
+	// find random start pos
 	{
-		for( pos.x = 0; pos.x < tiles.GetWidth(); pos.x++ )
+		std::uniform_int_distribution<int> pos_dist_x( 0,tiles.GetWidth() - 1 );
+		std::uniform_int_distribution<int> pos_dist_y( 0,tiles.GetHeight() - 1 );
+		while( true )
 		{
+			const Vei2 pos = { pos_dist_x( rng ),pos_dist_y( rng ) };
 			if( tiles.At( pos ).type == TileType::Floor )
 			{
 				start_pos = pos;
+				break;
 			}
 		}
 	}
@@ -460,9 +463,10 @@ TileMap::TileMap( const Config& config )
 		std::uniform_int_distribution<int> pos_dist_y( 0,tiles.GetHeight() - 1 );
 		while( true )
 		{
-			if( tiles.At( { pos_dist_x( rng ),pos_dist_y( rng ) } ).type == TileType::Floor )
+			auto& tile = tiles.At( { pos_dist_x( rng ),pos_dist_y( rng ) } );
+			if( tile.type == TileType::Floor )
 			{
-				tiles.At( { pos_dist_x( rng ),pos_dist_y( rng ) } ).type = TileType::Goal;
+				tile.type = TileType::Goal;
 				break;
 			}
 		}

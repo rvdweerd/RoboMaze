@@ -78,6 +78,8 @@ public:
 		// load map proc extra info
 		roomTries = GetPrivateProfileIntA( "simulation","map_room",-1,full_ini_path.c_str() );
 		extraDoors = GetPrivateProfileIntA( "simulation","extra_doors",-1,full_ini_path.c_str() );
+		// load seed
+		seed = GetPrivateProfileIntA( "simulation","seed",-1,full_ini_path.c_str() );
 	}
 	std::string GetMapFilename() const
 	{
@@ -147,6 +149,10 @@ public:
 			return Direction::Up();
 		}
 	}
+	unsigned int GetSeed() const
+	{
+		return (unsigned int)seed;
+	}
 private:
 	std::string map_filename;
 	SimulationMode sim_mode;
@@ -158,5 +164,6 @@ private:
 	int extraDoors;
 	int screenWidth;
 	int screenHeight;
+	int seed;
 	Direction::Type dir;
 };

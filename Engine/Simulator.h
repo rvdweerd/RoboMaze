@@ -148,7 +148,8 @@ private:
 	{
 		if( config.GetMapMode() == Config::MapMode::Procedural )
 		{
-			return TileMap( config );
+			std::mt19937 rng( config.GetSeed() );
+			return TileMap( config,rng );
 		}
 		else
 		{
