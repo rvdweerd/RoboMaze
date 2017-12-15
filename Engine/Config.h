@@ -21,6 +21,15 @@ public:
 		Procedural,
 		Count
 	};
+	enum class GoalMode
+	{
+		NoGoal,
+		Random,
+		RoomCenter,
+		StartPosition,
+		InView,
+		Count
+	};
 public:
 	explicit Config( const std::string& filename )
 	{
@@ -58,6 +67,11 @@ public:
 		ThrowIfFalse( (int)dir >= 0 && (int)dir <= (int)Direction::Type::Count,
 			"Bad start direction code: " + std::to_string( (int)dir )
 		);
+		// load goal spawn mode
+		goalMode = (GoalMode)GetPrivateProfileIntA( "simulation","goal_spawn",-1,full_ini_path.c_str() );
+		ThrowIfFalse( (int)goalMode >= 0 && (int)goalMode < (int)GoalMode::Count,
+			"Bad goal spawn mode code: " + std::to_string( (int)goalMode )
+		);
 		// load map width and height
 		mapWidth = GetPrivateProfileIntA( "simulation","map_width",-1,full_ini_path.c_str() );
 		mapHeight = GetPrivateProfileIntA( "simulation","map_height",-1,full_ini_path.c_str() );
@@ -67,10 +81,8 @@ public:
 	}
 	std::string GetMapFilename() const
 	{
-		// TODO: this is nasty (proc gen is outside of the sphere of this class, should be ctor
-		// the map directly in the sim of proc)
-		return (GetMapMode() == MapMode::Procedural) ?
-			"Maps\\map_proc.txt" : map_filename;
+		assert( GetMapMode() != MapMode::Procedural );
+		return "Maps\\map_proc.txt";
 	}
 	SimulationMode GetSimulationMode() const
 	{
@@ -79,6 +91,11 @@ public:
 	MapMode GetMapMode() const
 	{
 		return map_mode;
+	}
+	GoalMode GetGoalMode() const
+	{
+		assert( GetMapMode() == MapMode::Procedural );
+		return goalMode;
 	}
 	int GetScreenWidth() const
 	{
@@ -95,6 +112,7 @@ public:
 	}
 	int GetExtraDoors() const
 	{
+		assert( GetMapMode() == MapMode::Procedural );
 		return extraDoors;
 	}
 	int GetMapHeight() const
@@ -133,6 +151,7 @@ private:
 	std::string map_filename;
 	SimulationMode sim_mode;
 	MapMode map_mode;
+	GoalMode goalMode;
 	int mapWidth;
 	int mapHeight;
 	int roomTries;

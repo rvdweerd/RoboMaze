@@ -18,6 +18,36 @@ TileMap::TileMap( const Config & config )
 	std::unordered_map<int,std::vector<Vei2>> compartments;
 	int cur_id = 0;
 
+	// first place goal room if room mode active
+	if( config.GetGoalMode() == Config::GoalMode::RoomCenter )
+	{
+		// goal room is 9x9 (could make this vary in the future)
+		const int width = 11;
+		const int height = 11;
+		std::uniform_int_distribution<int> pos_dist_x( 0,tiles.GetWidth() - width - 1 );
+		std::uniform_int_distribution<int> pos_dist_y( 0,tiles.GetHeight() - height - 1 );
+		
+		// add to compartment map
+		compartments.emplace( cur_id,std::vector<Vei2>{} );
+		// generate top left corner pos
+		const int xLeft = pos_dist_x( rng );
+		const int yTop = pos_dist_y( rng );
+		// fill with floor
+		for( Vei2 pos = { 0,yTop + 1 }; pos.y < yTop + height - 1; pos.y++ )
+		{
+			for( pos.x = xLeft + 1; pos.x < xLeft + width - 1; pos.x++ )
+			{
+				tiles.At( pos ).type = TileType::Floor;
+				compartmentIds.At( pos ) = cur_id;
+				compartments[cur_id].push_back( pos );
+			}
+		}
+		// place goal
+		tiles.At( Vei2{ xLeft,yTop } + Vei2{ 5,5 } ).type = TileType::Goal;
+		// update id
+		cur_id++;
+	}
+
 	const auto TryPlaceRoom = [this,&id = cur_id,&rng,&room_dist,&compartmentIds,&compartments]()
 	{
 		const int width = room_dist( rng );
@@ -38,7 +68,7 @@ TileMap::TileMap( const Config & config )
 				}
 			}
 		}
-		// add to compartment vector
+		// add to compartment map
 		compartments.emplace( id,std::vector<Vei2>{} );
 		// fill with floor
 		for( Vei2 pos = { 0,yTop + 1 }; pos.y < yTop + height - 1; pos.y++ )
@@ -140,7 +170,7 @@ TileMap::TileMap( const Config & config )
 	// last compartment is empty
 	compartments.erase( cur_id-- );
 	// TODO: assert no empty compartments
-	// generate doors here
+	// generate linking doors here
 	while( compartments.size() > 1 )
 	{
 		std::vector<Vei2> wall_cands;
