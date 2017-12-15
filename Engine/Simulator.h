@@ -25,10 +25,10 @@ public:
 		Count
 	};
 public:
-	Simulator( const std::string& map_filename,const Direction& dir )
+	Simulator( const Config& config )
 		:
-		map( map_filename ),
-		rob( map.GetStartPos(),dir ),
+		map( LoadMap( config ) ),
+		rob( map.GetStartPos(),config.GetStartDirection() ),
 		goalReachable( ComputeGoalReachability() )
 	{
 		stateTexts.resize( (int)State::Count );
@@ -144,6 +144,18 @@ protected:
 	Robo rob;
 	Font font = Font( "Images\\Fixedsys16x28.bmp" );
 private:
+	static TileMap LoadMap( const Config& config )
+	{
+		if( config.GetMapMode() == Config::MapMode::Procedural )
+		{
+			return TileMap( config );
+		}
+		else
+		{
+			return TileMap( config.GetMapFilename() );
+		}
+	}
+private:
 	bool goalReachable;
 	int move_count = 0;
 	State state = State::Working;
@@ -155,7 +167,7 @@ class HeadlessSimulator : public Simulator
 public:
 	HeadlessSimulator( const Config& config )
 		:
-		Simulator( config.GetMapFilename(),config.GetStartDirection() )
+		Simulator( config )
 	{
 		worker = std::thread( [this]()
 		{
@@ -199,7 +211,7 @@ class VisualSimulator : public Simulator,public Window::SimstepControllable
 public:
 	VisualSimulator( const Config& config )
 		:
-		Simulator( config.GetMapFilename(),config.GetStartDirection() ),
+		Simulator( config ),
 		ctrls( Graphics::GetScreenRect() )
 	{
 		auto pCamlockTemp = std::make_unique<Window::CamLockToggle>(
