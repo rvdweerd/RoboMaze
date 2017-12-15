@@ -223,6 +223,20 @@ TileMap::TileMap( const Config & config )
 			t.type = TileType::Wall;
 		}
 	}
+	// extra doors
+	{
+		std::uniform_int_distribution<int> dist_x( 1,tiles.GetWidth() - 2 );
+		std::uniform_int_distribution<int> dist_y( 1,tiles.GetHeight() - 2 );
+		for( int n = 0; n < config.GetExtraDoors(); )
+		{
+			const Vei2 pos = { dist_x( rng ),dist_y( rng ) };
+			if( tiles.At( pos ).type == TileType::Wall )
+			{
+				tiles.At( pos ).type = TileType::Floor;
+				n++;
+			}
+		}
+	}
 	// (maybe generate flair here)
 	// TODO: add goal
 	// TODO: file might need to determine accessibility? or something? (why is crashing when not found?)

@@ -61,7 +61,9 @@ public:
 		// load map width and height
 		mapWidth = GetPrivateProfileIntA( "simulation","map_width",-1,full_ini_path.c_str() );
 		mapHeight = GetPrivateProfileIntA( "simulation","map_height",-1,full_ini_path.c_str() );
+		// load map proc extra info
 		roomTries = GetPrivateProfileIntA( "simulation","map_room",-1,full_ini_path.c_str() );
+		extraDoors = GetPrivateProfileIntA( "simulation","extra_doors",-1,full_ini_path.c_str() );
 	}
 	std::string GetMapFilename() const
 	{
@@ -90,6 +92,10 @@ public:
 	{
 		assert( map_mode == MapMode::Procedural );
 		return mapWidth;
+	}
+	int GetExtraDoors() const
+	{
+		return extraDoors;
 	}
 	int GetMapHeight() const
 	{
@@ -130,6 +136,7 @@ private:
 	int mapWidth;
 	int mapHeight;
 	int roomTries;
+	int extraDoors;
 	int screenWidth;
 	int screenHeight;
 	Direction::Type dir;
