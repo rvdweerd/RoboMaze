@@ -7,6 +7,8 @@
 #include <vector>
 #include <memory>
 #include <fstream>
+#include <algorithm>
+#include <numeric>
 
 class Evaluator : public Gameable
 {
@@ -75,6 +77,33 @@ public:
 			file << "Moves taken:" << r.nMoves << std::endl;
 			file << "Time taken:" << r.time << std::endl;
 		}
+
+		// write totals
+		const auto total_time = std::accumulate( results.begin(),results.end(),0.0f,
+			[]( float s,const Result& r )
+			{
+				return s + r.time;
+			}
+		);
+		const auto total_moves = std::accumulate( results.begin(),results.end(),0,
+			[]( int s,const Result& r )
+			{
+				return s + r.nMoves;
+			}
+		);
+		const auto nSuccess = std::count_if( results.begin(),results.end(),
+			[]( const Result& r )
+			{
+				return r.result == Simulator::State::Success;
+			}
+		);
+
+		file << std::endl << std::endl
+			<< "========================================\n"
+			<< "Success Rate: " << nSuccess << "/" << results.size() << std::endl
+			<< "Total Moves: " << total_moves << std::endl
+			<< "Total Time: " << total_time;
+
 		written = true;
 	}
 private:
