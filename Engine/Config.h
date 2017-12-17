@@ -82,13 +82,19 @@ public:
 		extraDoors = GetPrivateProfileIntA( "simulation","extra_doors",-1,full_ini_path.c_str() );
 		// load seed
 		seed = GetPrivateProfileIntA( "simulation","seed",-1,full_ini_path.c_str() );
-		// load seed
-		seed = GetPrivateProfileIntA( "simulation","seed",-1,full_ini_path.c_str() );
+		// max moves
+		maxMoves = GetPrivateProfileIntA( "simulation","max_moves",-1,full_ini_path.c_str() );
+		// n runs
+		nRuns = GetPrivateProfileIntA( "simulation","runs",-1,full_ini_path.c_str() );
 	}
 	std::string GetMapFilename() const
 	{
 		assert( GetMapMode() != MapMode::Procedural );
 		return "Maps\\map_proc.txt";
+	}
+	int GetMaxMoves() const
+	{
+		return maxMoves;
 	}
 	SimulationMode GetSimulationMode() const
 	{
@@ -153,6 +159,10 @@ public:
 			return Direction::Up();
 		}
 	}
+	int GetNumberRuns() const
+	{
+		return nRuns;
+	}
 	unsigned int GetSeed() const
 	{
 		return (unsigned int)seed;
@@ -168,6 +178,8 @@ private:
 	int extraDoors;
 	int screenWidth;
 	int screenHeight;
+	int maxMoves;
+	int nRuns;
 	int seed;
 	Direction::Type dir;
 };

@@ -31,7 +31,8 @@ public:
 		seed( (unsigned int)seed ),
 		map( LoadMap( config,seed ) ),
 		rob( map.GetStartPos(),map.GetStartDirection() ),
-		goalReachable( ComputeGoalReachability() )
+		goalReachable( ComputeGoalReachability() ),
+		max_moves( config.GetMaxMoves() )
 	{
 		stateTexts.resize( (int)State::Count );
 		stateTexts[(int)State::Success] = { { "Done" },Colors::White };
@@ -89,6 +90,10 @@ public:
 			{
 				state = State::Failure;
 			}
+		}
+		else if( move_count > max_moves )
+		{
+			state = State::Failure;
 		}
 	}
 	virtual float GetWorkingTime() const
@@ -169,6 +174,7 @@ private:
 	unsigned int seed;
 	bool goalReachable;
 	int move_count = 0;
+	int max_moves;
 	State state = State::Working;
 	std::vector<std::pair<std::string,Color>> stateTexts;
 };

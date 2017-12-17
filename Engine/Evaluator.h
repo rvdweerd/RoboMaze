@@ -26,7 +26,7 @@ public:
 		seed( config.GetSeed() )
 	{
 		std::mt19937 seed_gen( seed );
-		for( int n = 0; n < 200; n++ )
+		for( int n = 0; n < config.GetNumberRuns(); n++ )
 		{
 			simulations.push_back( GenerateSimulation( config,seed_gen() ) );
 		}
