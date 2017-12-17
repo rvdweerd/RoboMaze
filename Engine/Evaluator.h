@@ -31,7 +31,7 @@ public:
 			simulations.push_back( GenerateSimulation( config,seed_gen() ) );
 		}
 	}
-	void Update( MainWindow& hwnd,float dt ) override
+	void Update( MainWindow& wnd,float dt ) override
 	{
 		while( !IsFinished() && simulations.back()->Finished() )
 		{
@@ -47,11 +47,13 @@ public:
 
 		if( !IsFinished() )
 		{
-			simulations.back()->Update( hwnd,dt );
+			simulations.back()->Update( wnd,dt );
 		}
 		else if( !written )
 		{
 			WriteResults();
+			wnd.ShowMessageBox( L"Finished",L"Done!" );
+			wnd.Kill();
 		}
 	}
 	void Draw( Graphics& gfx ) const override
