@@ -1,0 +1,17 @@
+  Master seed: [69]
+=========================================
+
+ [3474919369]
+Result: Success
+Moves taken:65
+Time taken:0
+
+ [1724767435]
+Result: Success
+Moves taken:58
+Time taken:0
+
+ [1272380470]
+Result: Success
+Moves taken:182
+Time taken:0

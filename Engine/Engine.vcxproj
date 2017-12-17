@@ -145,6 +145,8 @@
     <ClInclude Include="Config.h" />
     <ClInclude Include="DebugControls.h" />
     <ClInclude Include="Direction.h" />
+    <ClInclude Include="Evaluator.h" />
+    <ClInclude Include="Gameable.h" />
     <ClInclude Include="Simulator.h" />
     <ClInclude Include="DXErr.h" />
     <ClInclude Include="Font.h" />

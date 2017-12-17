@@ -20,6 +20,8 @@
  ******************************************************************************************/
 #include "MainWindow.h"
 #include "Game.h"
+#include "Simulator.h"
+#include "Evaluator.h"
 
 Game::Game( MainWindow& wnd,const Config& config )
 	:
@@ -31,26 +33,37 @@ Game::Game( MainWindow& wnd,const Config& config )
 
 void Game::InitializeSimulation( const Config& config )
 {
-	switch( config.GetSimulationMode() )
+	if( config.GetEvalMode() == Config::EvaluationMode::Single )
 	{
-	case Config::SimulationMode::Headless:
-		sim = std::make_unique<HeadlessSimulator>( config );
-		break;
-	case Config::SimulationMode::Visual:
-		sim = std::make_unique<NormalSimulator>( config );
-		break;
-	case Config::SimulationMode::VisualDebug:
-		if( RoboAIDebug::implemented )
+		switch( config.GetSimulationMode() )
 		{
-			sim = std::make_unique<DebugSimulator>( config );
+		case Config::SimulationMode::Headless:
+			sim = std::make_unique<HeadlessSimulator>( config,config.GetSeed() );
+			break;
+		case Config::SimulationMode::Visual:
+			sim = std::make_unique<NormalSimulator>( config,config.GetSeed() );
+			break;
+		case Config::SimulationMode::VisualDebug:
+			if( RoboAIDebug::implemented )
+			{
+				sim = std::make_unique<DebugSimulator>( config,config.GetSeed() );
+			}
+			else
+			{
+				throw std::runtime_error( "Visual Debug AI not implemented!" );
+			}
+			break;
+		default:
+			assert( false && "Bad simulation mode" );
 		}
-		else
-		{
-			throw std::runtime_error( "Visual Debug AI not implemented!" );
-		}
-		break;
-	default:
-		assert( false && "Bad simulation mode" );
+	}
+	else if( config.GetEvalMode() == Config::EvaluationMode::Script )
+	{
+		sim = std::make_unique<Evaluator>( config );
+	}
+	else
+	{
+		assert( "Bad evaluation mode" && false );
 	}
 }
 

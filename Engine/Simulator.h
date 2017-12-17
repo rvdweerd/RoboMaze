@@ -10,11 +10,12 @@
 #include "MainWindow.h"
 #include "Window.h"
 #include "Config.h"
+#include "Gameable.h"
 #include <atomic>
 #include <deque>
 #include <unordered_set>
 
-class Simulator
+class Simulator : public Gameable
 {
 public:
 	enum class State
@@ -25,9 +26,10 @@ public:
 		Count
 	};
 public:
-	Simulator( const Config& config )
+	Simulator( const Config& config,size_t seed )
 		:
-		map( LoadMap( config ) ),
+		seed( (unsigned int)seed ),
+		map( LoadMap( config,seed ) ),
 		rob( map.GetStartPos(),map.GetStartDirection() ),
 		goalReachable( ComputeGoalReachability() )
 	{
@@ -36,12 +38,11 @@ public:
 		stateTexts[(int)State::Failure] = { { "Fail" },Colors::Red };
 		stateTexts[(int)State::Working] = { { "Work" },Colors::Green };
 	}
-	virtual ~Simulator() = default;
 	int GetMoveCount() const
 	{
 		return move_count;
 	}
-	virtual void Draw( Graphics& gfx ) const
+	void Draw( Graphics& gfx ) const override
 	{
 		// move count bottom right
 		{
@@ -58,12 +59,51 @@ public:
 			stateTexts[(int)state].second,gfx
 		);
 	}
-	virtual void Update( MainWindow& wnd,float dt )
+	void Update( MainWindow& wnd,float dt ) override
 	{}
 	bool GoalReached() const
 	{
 		return map.At( rob.GetPos() ) == TileMap::TileType::Goal;
 	}
+	bool Finished() const
+	{
+		return state != State::Working;
+	}
+	State GetState() const
+	{
+		return state;
+	}
+	unsigned int GetSeed() const
+	{
+		return seed;
+	}
+	void UpdateState( Robo::Action action )
+	{
+		if( action == Robo::Action::Done )
+		{
+			if( GoalReached() || !goalReachable )
+			{
+				state = State::Success;
+			}
+			else
+			{
+				state = State::Failure;
+			}
+		}
+	}
+	virtual float GetWorkingTime() const
+	{
+		return 0.0f;
+	}
+protected:
+	void IncrementMoveCount()
+	{
+		move_count++;
+	}
+	TileMap map;
+	Robo rob;
+	Font font = Font( "Images\\Fixedsys16x28.bmp" );
+private:
 	bool ComputeGoalReachability() const
 	{
 		// create queue for 'frontier'
@@ -113,42 +153,11 @@ public:
 		// cannot reach goal
 		return false;
 	}
-	bool Finished() const
-	{
-		return state != State::Working;
-	}
-	State GetState() const
-	{
-		return state;
-	}
-	void UpdateState( Robo::Action action )
-	{
-		if( action == Robo::Action::Done )
-		{
-			if( GoalReached() || !goalReachable )
-			{
-				state = State::Success;
-			}
-			else
-			{
-				state = State::Failure;
-			}
-		}
-	}
-protected:
-	void IncrementMoveCount()
-	{
-		move_count++;
-	}
-	TileMap map;
-	Robo rob;
-	Font font = Font( "Images\\Fixedsys16x28.bmp" );
-private:
-	static TileMap LoadMap( const Config& config )
+	static TileMap LoadMap( const Config& config,size_t seed )
 	{
 		if( config.GetMapMode() == Config::MapMode::Procedural )
 		{
-			std::mt19937 rng( config.GetSeed() );
+			std::mt19937 rng( (unsigned int)seed );
 			return TileMap( config,rng );
 		}
 		else
@@ -157,6 +166,7 @@ private:
 		}
 	}
 private:
+	unsigned int seed;
 	bool goalReachable;
 	int move_count = 0;
 	State state = State::Working;
@@ -166,9 +176,9 @@ private:
 class HeadlessSimulator : public Simulator
 {
 public:
-	HeadlessSimulator( const Config& config )
+	HeadlessSimulator( const Config& config,size_t seed = 0u )
 		:
-		Simulator( config )
+		Simulator( config,seed )
 	{
 		worker = std::thread( [this]()
 		{
@@ -201,6 +211,10 @@ public:
 		dying = true;
 		worker.join();
 	}
+	float GetWorkingTime() const override
+	{
+		return workingTime;
+	}
 private:
 	float workingTime = 0.0f;
 	std::thread worker;
@@ -210,9 +224,9 @@ private:
 class VisualSimulator : public Simulator,public Window::SimstepControllable
 {
 public:
-	VisualSimulator( const Config& config )
+	VisualSimulator( const Config& config,size_t seed = 0u )
 		:
-		Simulator( config ),
+		Simulator( config,seed ),
 		ctrls( Graphics::GetScreenRect() )
 	{
 		auto pCamlockTemp = std::make_unique<Window::CamLockToggle>(
@@ -275,9 +289,9 @@ private:
 class DebugSimulator : public VisualSimulator
 {
 public:
-	DebugSimulator( const Config& config )
+	DebugSimulator( const Config& config,size_t seed = 0u )
 		:
-		VisualSimulator( config ),
+		VisualSimulator( config,seed ),
 		dc( map,rob ),
 		ai( dc )
 	{

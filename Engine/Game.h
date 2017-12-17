@@ -23,10 +23,9 @@
 #include "Keyboard.h"
 #include "Mouse.h"
 #include "Graphics.h"
-#include "Surface.h"
 #include "FrameTimer.h"
-#include "Simulator.h"
-#include "Config.h"
+#include "Gameable.h"
+#include <memory>
 
 class Game
 {
@@ -40,7 +39,7 @@ private:
 	void UpdateModel();
 	/********************************/
 	/*  User Functions              */
-	void InitializeSimulation( const Config& config );
+	void InitializeSimulation( const class Config& config );
 	/********************************/
 private:
 	MainWindow& wnd;
@@ -48,6 +47,6 @@ private:
 	/********************************/
 	/*  User Variables              */
 	FrameTimer ft;
-	std::unique_ptr<Simulator> sim;
+	std::unique_ptr<Gameable> sim;
 	/********************************/
 };

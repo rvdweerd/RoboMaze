@@ -7,7 +7,14 @@
 
 class Config
 {
+	friend class Evaluator;
 public:
+	enum class EvaluationMode
+	{
+		Single,
+		Script,
+		Count
+	};
 	enum class SimulationMode
 	{
 		Headless,
@@ -72,12 +79,19 @@ public:
 		ThrowIfFalse( (int)goalMode >= 0 && (int)goalMode < (int)GoalMode::Count,
 			"Bad goal spawn mode code: " + std::to_string( (int)goalMode )
 		);
+		// eval mode
+		evalMode = (EvaluationMode)GetPrivateProfileIntA( "simulation","eval",-1,full_ini_path.c_str() );
+		ThrowIfFalse( (int)evalMode >= 0 && (int)evalMode < (int)EvaluationMode::Count,
+			"Bad goal spawn mode code: " + std::to_string( (int)evalMode )
+		);
 		// load map width and height
 		mapWidth = GetPrivateProfileIntA( "simulation","map_width",-1,full_ini_path.c_str() );
 		mapHeight = GetPrivateProfileIntA( "simulation","map_height",-1,full_ini_path.c_str() );
 		// load map proc extra info
 		roomTries = GetPrivateProfileIntA( "simulation","map_room",-1,full_ini_path.c_str() );
 		extraDoors = GetPrivateProfileIntA( "simulation","extra_doors",-1,full_ini_path.c_str() );
+		// load seed
+		seed = GetPrivateProfileIntA( "simulation","seed",-1,full_ini_path.c_str() );
 		// load seed
 		seed = GetPrivateProfileIntA( "simulation","seed",-1,full_ini_path.c_str() );
 	}
@@ -127,6 +141,10 @@ public:
 		assert( map_mode == MapMode::Procedural );
 		return roomTries;
 	}
+	EvaluationMode GetEvalMode() const
+	{
+		return evalMode;
+	}
 	bool IsRandomStartDirection() const
 	{
 		return dir == Direction::Type::Count;
@@ -158,6 +176,7 @@ private:
 	SimulationMode sim_mode;
 	MapMode map_mode;
 	GoalMode goalMode;
+	EvaluationMode evalMode;
 	int mapWidth;
 	int mapHeight;
 	int roomTries;
