@@ -117,6 +117,7 @@ private:
 		config.mapHeight = size_d( param_gen );
 		config.roomTries = (config.mapWidth * config.mapHeight) / 6000;
 		config.extraDoors = (config.mapWidth + config.mapHeight) / 2;
+		config.maxMoves = config.mapWidth * config.mapHeight * 4;
 		return std::make_unique<HeadlessSimulator>( config,seed );
 	}
 private:
