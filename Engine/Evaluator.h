@@ -24,9 +24,10 @@ public:
 		seed( config.GetSeed() )
 	{
 		std::mt19937 seed_gen( seed );
-		simulations.push_back( std::make_unique<DebugSimulator>( config,seed_gen() ) );
-		simulations.push_back( std::make_unique<DebugSimulator>( config,seed_gen() ) );
-		simulations.push_back( std::make_unique<DebugSimulator>( config,seed_gen() ) );
+		for( int n = 0; n < 200; n++ )
+		{
+			simulations.push_back( GenerateSimulation( config,seed_gen() ) );
+		}
 	}
 	void Update( MainWindow& hwnd,float dt ) override
 	{
@@ -75,6 +76,19 @@ public:
 			file << "Time taken:" << r.time << std::endl;
 		}
 		written = true;
+	}
+private:
+	std::unique_ptr<Simulator> GenerateSimulation( Config config,unsigned int seed )
+	{
+		std::mt19937 param_gen( seed );
+		std::discrete_distribution<> spawn_d = { 10,45,35,5,5 };
+		std::uniform_int_distribution<int> size_d( 20,800 );
+		config.goalMode = (Config::GoalMode)spawn_d( param_gen );
+		config.mapWidth = size_d( param_gen );
+		config.mapHeight = size_d( param_gen );
+		config.roomTries = (config.mapWidth * config.mapHeight) / 6000;
+		config.extraDoors = (config.mapWidth + config.mapHeight) / 2;
+		return std::make_unique<HeadlessSimulator>( config,seed );
 	}
 private:
 	unsigned int seed;

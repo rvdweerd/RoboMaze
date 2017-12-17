@@ -4,7 +4,6 @@
 #include <random>
 #include <deque>
 
-
 // returns angle in units of pi/2 (90deg you pleb)
 inline int GetAngleBetween( const Direction& d1,const Direction& d2 )
 {
@@ -98,10 +97,12 @@ public:
 	Djikslide()
 		:
 		nodes( gridWidth * gridHeight ),
-		pos( gridWidth / 2,gridHeight / 2 )
+		pos( gridWidth / 2,gridHeight / 2 ), // start in middle
+		visit_extent( -1,-1,-1,-1 )
 	{
 		// prime the pathing pump
 		path.push_back( pos + dir );
+		ResetExtents( pos );
 	}
 	// this signals to the system whether the debug AI can be used
 	static constexpr bool implemented = true;
@@ -118,7 +119,11 @@ public:
 		if( At( path.back() ).GetType() != TT::Invalid )
 		{
 			// compute new path
-			ComputePath();
+			if( !ComputePath() )
+			{
+				// if ComputePath() returns false, impossible to reach goal
+				return Action::Done;
+			}
 		}
 		// find our position in path sequence
 		const auto i = std::find( path.begin(),path.end(),pos );
@@ -126,16 +131,21 @@ public:
 		return MoveTo( *std::next( i ) );
 	}
 private:
-	void ComputePath()
+	bool ComputePath()
 	{
 		// create priority queue for 'frontier'
 		std::deque<Vei2> frontier;
 
 		// clear costs
-		for( auto& node : nodes )
+		for( Vei2 cp = visit_extent.TopLeft(); cp.y <= visit_extent.bottom; cp.y++ )
 		{
-			node.ClearCost();
+			for( cp.x = visit_extent.left; cp.x <= visit_extent.right; cp.x++ )
+			{
+				At( cp ).ClearCost();
+			}
 		}
+
+		ResetExtents( pos );
 
 		// clear path sequence
 		path.clear();
@@ -143,6 +153,7 @@ private:
 		// add current tile to frontier to0 start the ball rollin
 		At( pos ).UpdateCost( 0 );
 		frontier.emplace_back( pos );
+		AdjustExtents( pos );
 
 		while( !frontier.empty() )
 		{
@@ -170,18 +181,20 @@ private:
 					path.push_back( trace );
 					// gotta reverse that shit
 					std::reverse( path.begin(),path.end() );
-					return;
+					return true;
 				}
 				else if( node.GetType() == TT::Floor )
 				{
 					if( node.UpdateCost( At( base ).GetCost() + 1,base ) )
 					{
 						frontier.push_back( nodePos );
+						AdjustExtents( nodePos );
 					}
 				}
 			}
 		}
-		assert( "Terrible" && false );
+		// cannot reach goal
+		return false;
 	}
 	void UpdateMap( const std::array<TT,3>& view )
 	{
@@ -222,15 +235,34 @@ private:
 			return Action::TurnLeft;
 		}
 	}
+	void AdjustExtents( const Vei2& pos )
+	{
+		visit_extent.left = std::min( pos.x,visit_extent.left );
+		visit_extent.right = std::max( pos.x,visit_extent.right );
+		visit_extent.top = std::min( pos.y,visit_extent.top );
+		visit_extent.bottom = std::max( pos.y,visit_extent.bottom );
+	}
+	void ResetExtents( const Vei2& pos )
+	{
+		visit_extent = { pos.x + 1,pos.x - 1,pos.y + 1, pos.y - 1 };
+	}
 private:
-	bool visual_init_done = false;
-	static constexpr int gridWidth = 100;
-	static constexpr int gridHeight = 100;
+	// grid dimensions 2x the max dimensions
+	// (because we don't know where we start!)
+	static constexpr int gridWidth = 2000;
+	static constexpr int gridHeight = 2000;
 	Vei2 pos;
 	std::vector<Vei2> path;
 	Direction dir = Direction::Up();
 	std::vector<Node> nodes;
+	// inclusive!
+	RectI visit_extent;
 };
+
+
+
+
+
 
 // demo of how to use DebugControls for visualization
 class Djikslide_Debug
@@ -499,4 +531,3 @@ typedef Djikslide_Debug RoboAIDebug;
 // TODO: Fix performance for large max map size (block-clean min-max)
 // TODO: test perf walk-clean vs. block clean vs. map
 // TODO: implement non-slide (turn counting) dijkturn with map
-// TODO: propagate unreachable and rel-dir fixes to non debug ver
