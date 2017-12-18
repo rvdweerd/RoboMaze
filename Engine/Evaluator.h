@@ -26,9 +26,21 @@ public:
 		seed( config.GetSeed() )
 	{
 		std::mt19937 seed_gen( seed );
-		for( int n = 0; n < config.GetNumberRuns(); n++ )
+		for( int n = 0; n < config.GetNumberRuns() - 1; n++ )
 		{
 			simulations.push_back( GenerateSimulation( config,seed_gen() ) );
+		}
+		// stress
+		auto& calias = config;
+		{
+			Config config = calias;
+			config.goalMode = Config::GoalMode::Random;
+			config.mapWidth = 1000;
+			config.mapHeight = 1000;
+			config.roomTries = (config.mapWidth + config.mapHeight) / 2;
+			config.extraDoors = (config.mapWidth + config.mapHeight) / 2;
+			config.maxMoves = config.mapWidth * config.mapHeight * 4;
+			simulations.push_back( std::make_unique<HeadlessSimulator>( config,seed_gen() ) );
 		}
 	}
 	void Update( MainWindow& wnd,float dt ) override
@@ -113,7 +125,7 @@ private:
 	{
 		std::mt19937 param_gen( seed );
 		std::discrete_distribution<> spawn_d = { 10,45,35,5,5 };
-		std::uniform_int_distribution<int> size_d( 20,800 );
+		std::uniform_int_distribution<int> size_d( 20,300 );
 		config.goalMode = (Config::GoalMode)spawn_d( param_gen );
 		config.mapWidth = size_d( param_gen );
 		config.mapHeight = size_d( param_gen );
