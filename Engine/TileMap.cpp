@@ -471,8 +471,4 @@ TileMap::TileMap( const Config& config,std::mt19937& rng )
 			}
 		}
 	}
-	else
-	{
-		assert( config.GetGoalMode() == Config::GoalMode::NoGoal );
-	}
 }
