@@ -90,7 +90,7 @@ public:
 	std::string GetMapFilename() const
 	{
 		assert( GetMapMode() != MapMode::Procedural );
-		return "Maps\\map_proc.txt";
+		return map_filename;
 	}
 	int GetMaxMoves() const
 	{

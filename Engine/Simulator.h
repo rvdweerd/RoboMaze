@@ -167,7 +167,11 @@ private:
 		}
 		else
 		{
-			return TileMap( config.GetMapFilename(),config.GetStartDirection() );
+			// generate direction if random
+			std::mt19937 rng( (unsigned int)seed );
+			std::uniform_int_distribution<int> dist( 0,3 );
+			// load tilemap with direction
+			return TileMap( config.GetMapFilename(),(Direction::Type)dist( rng ) );
 		}
 	}
 private:
