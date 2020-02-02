@@ -3,6 +3,52 @@
 #include "..\DebugControls.h"
 #include <random>
 #include <deque>
+#include <stack>
+#include <unordered_set>
+#include <queue>
+
+enum class RoboDir
+{
+	NORTH=0,
+	EAST,
+	SOUTH,
+	WEST,
+	count
+};
+RoboDir OppositeDir(RoboDir d)
+{
+	return RoboDir(((int)d + 2) % 4);
+}
+struct RoboPosDir // Data structure for tracking the state (position & orientation) on our cache (/exploration) fieldMap
+{
+	int posIndex = 0; // index on our cache field fieldMap
+	RoboDir dir = RoboDir::EAST; // orientation
+};
+size_t CombineHash(size_t h1, size_t h2)
+{
+	h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
+	return h1;
+}
+namespace std
+{
+	template <> struct hash<RoboPosDir>
+	{
+		size_t operator()(const RoboPosDir& rPosDir) const
+		{
+			std::hash<int> hasher;
+			auto hashx = hasher(rPosDir.posIndex);
+			auto hashy = hasher((int)rPosDir.dir);
+			return CombineHash(hashx, hashy);
+		}
+	};
+	template <> struct equal_to<RoboPosDir>
+	{
+		bool operator()(const RoboPosDir& lhs, const RoboPosDir& rhs) const
+		{
+			return lhs.posIndex == rhs.posIndex && (int)lhs.dir == (int)rhs.dir;
+		}
+	};
+}
 
 // returns angle in units of pi/2 (90deg you pleb)
 inline int GetAngleBetween( const Direction& d1,const Direction& d2 )
@@ -49,484 +95,323 @@ inline Vei2 GetRotated90( const Vei2& v,int angle )
 }
 
 // demo of how to use DebugControls for visualization
-class Djikslide
+class RoboAI_rvdw
 {
 	using TT = TileMap::TileType;
 	using Action = Robo::Action;
 public:
-	class Node
+	RoboAI_rvdw()
+	{}
+	static constexpr bool implemented = false;
+	Action Plan(std::array<TT, 3> view)
 	{
-	public:
-		TT GetType() const
+		if (view[1] == TT::Wall)
 		{
-			return type;
-		}
-		void SetType( TT type_in )
-		{
-			assert( type == TT::Invalid );
-			type = type_in;
-		}
-		void ClearCost()
-		{
-			cost = std::numeric_limits<int>::max();
-		}
-		bool UpdateCost( int new_cost,const Vei2& new_prev = { -1,-1 } )
-		{
-			if( new_cost < cost )
+			if (coinflip(rng))
 			{
-				cost = new_cost;
-				prev = new_prev;
-				return true;
+				return Action::TurnRight;
 			}
-			return false;
-		}
-		int GetCost() const
-		{
-			return cost;
-		}
-		const Vei2& GetPrev() const
-		{
-			return prev;
-		}
-	private:
-		TT type = TT::Invalid;
-		Vei2 prev;
-		int cost = std::numeric_limits<int>::max();
-	};
-public:
-	Djikslide()
-		:
-		nodes( gridWidth * gridHeight ),
-		pos( gridWidth / 2,gridHeight / 2 ), // start in middle
-		visit_extent( -1,-1,-1,-1 )
-	{
-		// prime the pathing pump
-		path.push_back( pos + dir );
-		ResetExtents( pos );
-	}
-	// this signals to the system whether the debug AI can be used
-	static constexpr bool implemented = true;
-	Action Plan( std::array<TT,3> view )
-	{
-		// return DONE if standing on the goal
-		if( At( pos ).GetType() == TT::Goal )
-		{
-			return Action::Done;
-		}
-		// first update map
-		UpdateMap( view );
-		// check if we have revealed the target unknown square
-		if( At( path.back() ).GetType() != TT::Invalid )
-		{
-			// compute new path
-			if( !ComputePath() )
+			else
 			{
-				// if ComputePath() returns false, impossible to reach goal
-				return Action::Done;
+				return Action::TurnLeft;
 			}
 		}
-		// find our position in path sequence
-		const auto i = std::find( path.begin(),path.end(),pos );
-		// move to next position in sequence
-		return MoveTo( *std::next( i ) );
+		//dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
+
+		return Action::MoveForward;
 	}
+
 private:
-	bool ComputePath()
-	{
-		// create priority queue for 'frontier'
-		std::deque<Vei2> frontier;
-
-		// clear costs
-		for( Vei2 cp = visit_extent.TopLeft(); cp.y <= visit_extent.bottom; cp.y++ )
-		{
-			for( cp.x = visit_extent.left; cp.x <= visit_extent.right; cp.x++ )
-			{
-				At( cp ).ClearCost();
-			}
-		}
-
-		ResetExtents( pos );
-
-		// clear path sequence
-		path.clear();
-
-		// add current tile to frontier to0 start the ball rollin
-		At( pos ).UpdateCost( 0 );
-		frontier.emplace_back( pos );
-		AdjustExtents( pos );
-
-		while( !frontier.empty() )
-		{
-			const auto base = frontier.front();
-			frontier.pop_front();
-
-			auto dir = Direction::Up();
-			for( int i = 0; i < 4; i++,dir.RotateClockwise() )
-			{
-				const auto nodePos = base + dir;
-				auto& node = At( nodePos );
-				if( node.GetType() == TT::Invalid || node.GetType() == TT::Goal )
-				{
-					// then construct path and return
-					path.push_back( nodePos );
-					auto trace = base;
-					while( At( trace ).GetPrev() != Vei2{ -1,-1 } )
-					{
-						// add it to the path
-						path.push_back( trace );
-						// walk to next pos in path
-						trace = At( trace ).GetPrev();
-					}
-					// add it to the path
-					path.push_back( trace );
-					// gotta reverse that shit
-					std::reverse( path.begin(),path.end() );
-					return true;
-				}
-				else if( node.GetType() == TT::Floor )
-				{
-					if( node.UpdateCost( At( base ).GetCost() + 1,base ) )
-					{
-						frontier.push_back( nodePos );
-						AdjustExtents( nodePos );
-					}
-				}
-			}
-		}
-		// cannot reach goal
-		return false;
-	}
-	void UpdateMap( const std::array<TT,3>& view )
-	{
-		auto scan_pos = pos + dir + dir.GetRotatedCounterClockwise();
-		const auto scan_delta = dir.GetRotatedClockwise();
-		for( int i = 0; i < 3; i++,scan_pos += scan_delta )
-		{
-			auto& node = At( scan_pos );
-			const auto type = node.GetType();
-			if( type != TT::Invalid )
-			{
-				assert( type == view[i] );
-				continue;
-			}
-			node.SetType( view[i] );
-		}
-	}
-	Node& At( const Vei2& pos )
-	{
-		return nodes[pos.x + pos.y * gridWidth];
-	}
-	Action MoveTo( const Vei2& target )
-	{
-		const Direction delta = Direction( target - pos );
-		if( delta == dir )
-		{
-			pos += dir;
-			return Action::MoveForward;
-		}
-		else if( dir.GetRotatedClockwise() == delta )
-		{
-			dir.RotateClockwise();
-			return Action::TurnRight;
-		}
-		else
-		{
-			dir.RotateCounterClockwise();
-			return Action::TurnLeft;
-		}
-	}
-	void AdjustExtents( const Vei2& pos )
-	{
-		visit_extent.left = std::min( pos.x,visit_extent.left );
-		visit_extent.right = std::max( pos.x,visit_extent.right );
-		visit_extent.top = std::min( pos.y,visit_extent.top );
-		visit_extent.bottom = std::max( pos.y,visit_extent.bottom );
-	}
-	void ResetExtents( const Vei2& pos )
-	{
-		visit_extent = { pos.x + 1,pos.x - 1,pos.y + 1, pos.y - 1 };
-	}
-private:
-	// grid dimensions 2x the max dimensions
-	// (because we don't know where we start!)
-	static constexpr int gridWidth = 2000;
-	static constexpr int gridHeight = 2000;
-	Vei2 pos;
-	std::vector<Vei2> path;
-	Direction dir = Direction::Up();
-	std::vector<Node> nodes;
-	// inclusive!
-	RectI visit_extent;
+	//DebugControls& dc;
+	std::mt19937 rng = std::mt19937(std::random_device{}());
+	std::bernoulli_distribution coinflip;
 };
-
-
 
 
 
 
 // demo of how to use DebugControls for visualization
-class Djikslide_Debug
+
+class RoboAIDebug_rvdw
 {
 	using TT = TileMap::TileType;
 	using Action = Robo::Action;
 public:
-	class Node
-	{
-	public:
-		TT GetType() const
-		{
-			return type;
-		}
-		void SetType( TT type_in )
-		{
-			assert( type == TT::Invalid );
-			type = type_in;
-		}
-		void ClearCost()
-		{
-			cost = std::numeric_limits<int>::max();
-		}
-		bool UpdateCost( int new_cost,const Vei2& new_prev = { -1,-1 } )
-		{
-			if( new_cost < cost )
-			{
-				cost = new_cost;
-				prev = new_prev;
-				return true;
-			}
-			return false;
-		}
-		int GetCost() const
-		{
-			return cost;
-		}
-		const Vei2& GetPrev() const
-		{
-			return prev;
-		}
-	private:
-		TT type = TT::Invalid;
-		Vei2 prev;
-		int cost = std::numeric_limits<int>::max();
-	};
-public:
-	Djikslide_Debug( DebugControls& dc )
+	RoboAIDebug_rvdw(DebugControls& dc)
 		:
-		nodes( gridWidth * gridHeight ),
-		pos( gridWidth / 2,gridHeight / 2 ), // start in middle
-		dc( dc ),
-		angle( GetAngleBetween( dir,dc.GetRobotDirection() ) ),
-		visit_extent( -1,-1,-1,-1 )
+		dc(dc)
 	{
-		// prime the pathing pump
-		path.push_back( pos + dir );
-		VisualInit();
-		ResetExtents( pos );
+		visited.insert(roboPosDir.posIndex);		// Starting position is visited by definition
+		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
 	}
-	// this signals to the system whether the debug AI can be used
 	static constexpr bool implemented = true;
-	Action Plan( std::array<TT,3> view )
+	Action Plan(std::array<TT, 3> view)
 	{
-		// return DONE if standing on the goal
-		if( At( pos ).GetType() == TT::Goal )
+		RecordFieldView(view);
+		if (!instructionQueue.empty())
 		{
-			const auto lock = dc.AcquireGfxLock();
-			ClearPathMarkings();
-			return Action::Done;
-		}
-		// first update map
-		UpdateMap( view );
-		// check if we have revealed the target unknown square
-		if( At( path.back() ).GetType() != TT::Invalid )
-		{
-			// compute new path
-			if( !ComputePath() )
+			Action nextAction = instructionQueue.front(); instructionQueue.pop();
+			switch (nextAction)
 			{
-				// if ComputePath() returns false, impossible to reach goal
-				return Action::Done;
-			}
-		}
-		// find our position in path sequence
-		const auto i = std::find( path.begin(),path.end(),pos );
-		// move to next position in sequence
-		return MoveTo( *std::next( i ) );
-	}
-private:
-	bool ComputePath()
-	{
-		{
-			const auto lock = dc.AcquireGfxLock();
-			ClearPathMarkings();
-		}
-		// create priority queue for 'frontier'
-		std::deque<Vei2> frontier;
-
-		// clear costs
-		for( Vei2 cp = visit_extent.TopLeft(); cp.y <= visit_extent.bottom; cp.y++ )
-		{
-			for( cp.x = visit_extent.left; cp.x <= visit_extent.right; cp.x++ )
-			{
-				At( cp ).ClearCost();
-			}
-		}
-
-		ResetExtents( pos );
-
-		// clear path sequence
-		path.clear();
-
-		// add current tile to frontier to0 start the ball rollin
-		At( pos ).UpdateCost( 0 );
-		frontier.emplace_back( pos );
-		AdjustExtents( pos );
-
-		while( !frontier.empty() )
-		{
-			const auto base = frontier.front();
-			frontier.pop_front();
-
-			auto dir = Direction::Up();
-			for( int i = 0; i < 4; i++,dir.RotateClockwise() )
-			{
-				const auto nodePos = base + dir;
-				auto& node = At( nodePos );
-				if( node.GetType() == TT::Invalid || node.GetType() == TT::Goal )
+			case Action::TurnLeft:
+				FieldMapping_TurnLeft();
+				return nextAction;
+				break;
+			case Action::TurnRight:
+				FieldMapping_TurnRight();
+				return nextAction;
+				break;
+			case Action::MoveForward:
+				//auto it = fieldMap.find(GetForwardFieldIndex());
+				if (fieldMap[GetForwardFieldIndex()] == TT::Floor || fieldMap[GetForwardFieldIndex()] == TT::Goal)
 				{
-					// found our target, first mark it
-					dc.MarkAt( ToGameSpace( nodePos ),{ 96,96,0,0 } );
-					// then construct path and return
-					path.push_back( nodePos );
-					auto trace = base;
-					while( At( trace ).GetPrev() != Vei2{ -1,-1 } )
-					{
-						// mark sequence for visualiztion yellow
-						dc.MarkAt( ToGameSpace( trace ),{ 96,96,96,0 } );
-						// add it to the path
-						path.push_back( trace );
-						// walk to next pos in path
-						trace = At( trace ).GetPrev();
-					}
-					// mark sequence for visualiztion yellow
-					dc.MarkAt( ToGameSpace( trace ),{ 96,96,96,0 } );
-					// add it to the path
-					path.push_back( trace );
-					// gotta reverse that shit
-					std::reverse( path.begin(),path.end() );
-					return true;
+					path.push_back( std::pair<int,RoboDir>{ roboPosDir.posIndex,roboPosDir.dir } );
+					FieldMapping_MoveForward();
+					dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
+					return nextAction;
 				}
-				else if( node.GetType() == TT::Floor )
-				{
-					if( node.UpdateCost( At( base ).GetCost() + 1,base ) )
-					{
-						frontier.push_back( nodePos );
-						AdjustExtents( nodePos );
-						// mark each tile visited by my dik
-						dc.MarkAt( ToGameSpace( nodePos ),{ Colors::Green,32 } );
-						dc.WaitOnTick();
-					}
-				}
+				break;
+			default:
+				assert(false);
 			}
 		}
-		// cannot reach goal
-		return false;
-	}
-	void UpdateMap( const std::array<TT,3>& view )
-	{
-		auto scan_pos = pos + dir + dir.GetRotatedCounterClockwise();
-		const auto scan_delta = dir.GetRotatedClockwise();
-		for( int i = 0; i < 3; i++,scan_pos += scan_delta )
+		int nNewPositions = AddCandidateNeighborsToStack();
+		std::pair<int,RoboDir> targetPos = stack.top(); stack.pop();
+		if (nNewPositions > 0)
 		{
-			auto& node = At( scan_pos );
-			const auto type = node.GetType();
-			if( type != TT::Invalid )
-			{
-				assert( type == view[i] );
-				continue;
-			}
-			node.SetType( view[i] );
-			dc.ClearAt( ToGameSpace( scan_pos ) );
-		}
-	}
-	Node& At( const Vei2& pos )
-	{
-		return nodes[pos.x + pos.y * gridWidth];
-	}
-	Action MoveTo( const Vei2& target )
-	{
-		const Direction delta = Direction( target - pos );
-		if( delta == dir )
-		{
-			pos += dir;
-			return Action::MoveForward;
-		}
-		else if( dir.GetRotatedClockwise() == delta )
-		{
-			dir.RotateClockwise();
-			return Action::TurnRight;
+			BuildInstructionQueue_MoveToNext(targetPos);
+			visited.insert(targetPos.first);
 		}
 		else
 		{
-			dir.RotateCounterClockwise();
-			return Action::TurnLeft;
-		}
-	}
-	Vei2 ToGameSpace( const Vei2& pos_in ) const
-	{
-		return GetRotated90( pos_in - pos,angle ) + dc.GetRobotPosition();
-	}
-	Vei2 ToMapSpace( const Vei2& pos_in ) const
-	{
-		return GetRotated90( pos_in - dc.GetRobotPosition(),-angle ) + pos;
-	}
-	void VisualInit()
-	{
-		if( !visual_init_done )
-		{
-			auto l = dc.AcquireGfxLock();
-			dc.MarkAll( { Colors::Black,96 } );
-			visual_init_done = true;
-		}
-	}
-	void ClearPathMarkings()
-	{
-		dc.ForEach( [this]( const Vei2& p,DebugControls& dc )
-		{
-			if( At( ToMapSpace( p ) ).GetType() != TileMap::TileType::Invalid )
+			std::pair<int, RoboDir> previousPos;
+			do
 			{
-				dc.ClearAt( p );
+				//take one step back
+				previousPos = { path.back().first,OppositeDir(roboPosDir.dir) };
+				path.erase(path.end() - 1);
+				BuildInstructionQueue_MoveToNext(previousPos);
+			} while (!IsNeighbor(previousPos.first, targetPos.first)); // track back until new targetpos is 
+		}
+		if (!instructionQueue.empty())
+		{
+			Action nextAction = instructionQueue.front(); instructionQueue.pop();
+			switch (nextAction)
+			{
+			case Action::TurnLeft:
+				FieldMapping_TurnLeft();
+				break;
+			case Action::TurnRight:
+				FieldMapping_TurnRight();
+				break;
+			case Action::MoveForward:
+				FieldMapping_MoveForward();
+				dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
+				break;
+			default:
+				assert(false);
 			}
-		} );
+			return nextAction;
+		}
+		return Action::Done;
 	}
-	void AdjustExtents( const Vei2& pos )
+private: //Field info
+	void FieldMapping_TurnRight()
 	{
-		visit_extent.left = std::min( pos.x,visit_extent.left );
-		visit_extent.right = std::max( pos.x,visit_extent.right );
-		visit_extent.top = std::min( pos.y,visit_extent.top );
-		visit_extent.bottom = std::max( pos.y,visit_extent.bottom );
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			roboPosDir.dir = RoboDir::SOUTH;
+			break;
+		case RoboDir::WEST:
+			roboPosDir.dir = RoboDir::NORTH;
+			break;
+		case RoboDir::NORTH:
+			roboPosDir.dir = RoboDir::EAST;
+			break;
+		case RoboDir::SOUTH:
+			roboPosDir.dir = RoboDir::WEST;
+			break;
+		default:
+			assert(false);
+		}
 	}
-	void ResetExtents( const Vei2& pos )
+	void FieldMapping_TurnLeft()
 	{
-		visit_extent = { pos.x + 1,pos.x - 1,pos.y + 1, pos.y - 1 };
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			roboPosDir.dir = RoboDir::NORTH;
+			break;
+		case RoboDir::WEST:
+			roboPosDir.dir = RoboDir::SOUTH;
+			break;
+		case RoboDir::NORTH:
+			roboPosDir.dir = RoboDir::WEST;
+			break;
+		case RoboDir::SOUTH:
+			roboPosDir.dir = RoboDir::EAST;
+			break;
+		default:
+			assert(false);
+		}
 	}
-private:
+	void FieldMapping_MoveForward()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			roboPosDir.posIndex++;
+			break;
+		case RoboDir::WEST:
+			roboPosDir.posIndex--;
+			break;
+		case RoboDir::NORTH:
+			roboPosDir.posIndex -= fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			roboPosDir.posIndex += fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+	}
+	int GetForwardFieldIndex()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			return roboPosDir.posIndex+1;
+			break;
+		case RoboDir::WEST:
+			return roboPosDir.posIndex-1;
+			break;
+		case RoboDir::NORTH:
+			return roboPosDir.posIndex - fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			return roboPosDir.posIndex + fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+	}
+	void RecordFieldView(const std::array<TT, 3>& view)
+	{
+		std::array<int, 3> visibleCellIndices;
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + 1;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth + 1;
+			break;
+		case RoboDir::WEST:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - 1;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth - 1;
+			break;
+		case RoboDir::NORTH:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth + 1;
+			break;
+		case RoboDir::SOUTH:
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth - 1;
+			break;
+		default:
+			assert(false);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			if (fieldMap.find(visibleCellIndices[i]) == fieldMap.end())
+			{
+				fieldMap[visibleCellIndices[i]] = view[i];
+			}
+			else
+			{
+				assert( fieldMap[visibleCellIndices[i]] == view[i]); // Check if field informatino is consistent with earlier observation
+			}
+		}
+	}
+	bool IsNeighbor(int index1, int index2)
+	{
+		int difference = abs(index1 - index2);
+		return (difference == 1 || difference == fieldWidth);
+	}
+	static constexpr int maxFieldSideLength = 1000;
+	static constexpr int fieldWidth = 2 * maxFieldSideLength + 1;
+	static constexpr int fieldHeight = fieldWidth;
+	static constexpr int nField = fieldWidth * fieldHeight;
+private: //Position info
+	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::EAST };
+	std::unordered_map<int, TT> fieldMap;
+private: //Exploration control
+	int AddCandidateNeighborsToStack()
+	{
+		int count = 0;
+		std::array<int, 4> indicesNESW = {	roboPosDir.posIndex - fieldWidth, 
+											roboPosDir.posIndex + 1, 
+											roboPosDir.posIndex + fieldWidth,
+											roboPosDir.posIndex - 1 };
+		for (size_t i = 0; i < 4; i++)
+		{
+			int index = indicesNESW[i];
+			auto it = fieldMap.find(index);
+			if (it == fieldMap.end())
+			{
+				stack.push({ index , RoboDir(i)});
+				count++;
+			}
+			else if ((it->second == TT::Floor || it->second == TT::Goal) && // neighbor is accessible
+				visited.find(index) == visited.end())						// neighbor hasn't been visited before
+			{
+				stack.push({ index, RoboDir(i) });
+				count++;
+			}
+		}
+		return count;
+	}
+	void BuildInstructionQueue_MoveToNext(const std::pair<int, RoboDir>& targetPosIndex)
+	{
+		int option = (((int)targetPosIndex.second - (int)roboPosDir.dir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
+		switch (option)
+		{
+		case 2:
+			instructionQueue.push(Action::TurnLeft);
+			instructionQueue.push(Action::TurnLeft);
+			instructionQueue.push(Action::MoveForward);
+			break;
+		case 1:
+			instructionQueue.push(Action::TurnRight);
+			instructionQueue.push(Action::MoveForward);
+			break;
+		case 3:
+			instructionQueue.push(Action::TurnLeft);
+			instructionQueue.push(Action::MoveForward);
+			break;
+		case 0:
+			instructionQueue.push(Action::MoveForward);
+			break;
+		default:
+			assert(true);
+			break;
+		}
+	}
+	std::stack<std::pair<int,RoboDir>> stack;
+	std::unordered_set<int> visited;
+	std::vector<std::pair<int,RoboDir>> path;
+	std::queue<Action> instructionQueue;
+private: //Support data
 	DebugControls& dc;
-	bool visual_init_done = false;
-	// grid dimensions 2x the max dimensions
-	// (because we don't know where we start!)
-	static constexpr int gridWidth = 2000;
-	static constexpr int gridHeight = 2000;
-	Vei2 pos;
-	std::vector<Vei2> path;
-	Direction dir = Direction::Up();
-	std::vector<Node> nodes;
-	int angle;
-	// inclusive!
-	RectI visit_extent;
+	//std::mt19937 rng = std::mt19937(std::random_device{}());
+	//std::bernoulli_distribution coinflip;
 };
-
 // if you name your classes different than RoboAI/RoboAIDebug, use typedefs like these
-typedef Djikslide RoboAI;
-typedef Djikslide_Debug RoboAIDebug;
+typedef RoboAI_rvdw RoboAI;
+typedef RoboAIDebug_rvdw RoboAIDebug;
 
 // TODO: Fix performance for large max map size (block-clean min-max)
 // TODO: test perf walk-clean vs. block clean vs. map

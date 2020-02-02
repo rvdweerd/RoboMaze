@@ -41,7 +41,7 @@ public:
 		{
 			if( !pred )
 			{
-				throw std::runtime_error( "Config load error.\n" + msg );
+				//throw std::runtime_error( "Config load error.\n" + msg );
 			}
 		};
 		// get full path to ini file
