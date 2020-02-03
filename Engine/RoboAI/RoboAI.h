@@ -5,7 +5,10 @@
 #include <deque>
 #include <stack>
 #include <unordered_set>
+#include <set>
+#include <map>
 #include <queue>
+#include <fstream>
 
 enum class RoboDir
 {
@@ -24,6 +27,7 @@ struct RoboPosDir // Data structure for tracking the state (position & orientati
 	int posIndex = 0; // index on our cache field fieldMap
 	RoboDir dir = RoboDir::EAST; // orientation
 };
+
 size_t CombineHash(size_t h1, size_t h2)
 {
 	h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
@@ -49,14 +53,12 @@ namespace std
 		}
 	};
 }
-
 // returns angle in units of pi/2 (90deg you pleb)
 inline int GetAngleBetween( const Direction& d1,const Direction& d2 )
 {
 	constexpr std::array<int,4> map = { 0,2,3,1 };
 	return map[d2.GetIndex()] - map[d1.GetIndex()];
 }
-
 // angle is in units of pi/2 (90deg you pleb)
 inline Vei2 GetRotated90( const Vei2& v,int angle )
 {
@@ -127,11 +129,7 @@ private:
 	std::bernoulli_distribution coinflip;
 };
 
-
-
-
 // demo of how to use DebugControls for visualization
-
 class RoboAIDebug_rvdw
 {
 	using TT = TileMap::TileType;
@@ -139,10 +137,12 @@ class RoboAIDebug_rvdw
 public:
 	RoboAIDebug_rvdw(DebugControls& dc)
 		:
-		dc(dc)
+		dc(dc),
+		out_file("saved_field.txt")
 	{
 		visited.insert(roboPosDir.posIndex);		// Starting position is visited by definition
 		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
+		path.push_back(roboPosDir);					// Path vector starts with startposition
 	}
 	static constexpr bool implemented = true;
 	Action Plan(std::array<TT, 3> view)
@@ -150,111 +150,111 @@ public:
 		RecordFieldView(view);
 		if (!instructionQueue.empty())
 		{
-			Action nextAction = instructionQueue.front(); instructionQueue.pop();
-			switch (nextAction)
+			Robo::Action nextaction = instructionQueue.front(); instructionQueue.pop();
+			if (nextaction == Robo::Action::Done) return nextaction;
+			if (nextaction == Robo::Action::MoveForward)
 			{
-			case Action::TurnLeft:
-				FieldMapping_TurnLeft();
-				return nextAction;
-				break;
-			case Action::TurnRight:
-				FieldMapping_TurnRight();
-				return nextAction;
-				break;
-			case Action::MoveForward:
-				//auto it = fieldMap.find(GetForwardFieldIndex());
-				if (fieldMap[GetForwardFieldIndex()] == TT::Floor || fieldMap[GetForwardFieldIndex()] == TT::Goal)
+				int iForward = GetForwardFieldIndex();
+				assert(fieldMap.find(iForward) != fieldMap.end());
+				//assert(IsUFG(iForward));
+				if (!IsUFG(iForward))
 				{
-					path.push_back( std::pair<int,RoboDir>{ roboPosDir.posIndex,roboPosDir.dir } );
-					FieldMapping_MoveForward();
-					dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
-					return nextAction;
+					path.erase(path.end() - 1);
 				}
-				break;
-			default:
-				assert(false);
+				else
+				{
+					if (fieldMap[iForward] == TT::Goal)
+					{
+						while (!instructionQueue.empty()) instructionQueue.pop();
+						instructionQueue.push(Robo::Action::Done);
+					}
+					FieldMapping_MoveForward();
+					//path.push_back(roboPosDir); // NEEDS A FIX
+					return nextaction;
+				}
+			}
+			else if (nextaction == Robo::Action::TurnLeft)
+			{
+				FieldMapping_TurnLeft();
+				return nextaction;
+			}
+			else if (nextaction == Robo::Action::TurnRight)
+			{
+				FieldMapping_TurnRight();
+				return nextaction;
 			}
 		}
-		int nNewPositions = AddCandidateNeighborsToStack();
-		std::pair<int,RoboDir> targetPos = stack.top(); stack.pop();
-		if (nNewPositions > 0)
+		visited.insert(roboPosDir.posIndex);
+		int n = AddCandidateNeighborsToStack();
+		if (stack.empty()) return Robo::Action::Done;
+		int target;
+		int returnPos;
+		if (n > 0) // Move ahead - compose instructions
 		{
-			BuildInstructionQueue_MoveToNext(targetPos);
-			visited.insert(targetPos.first);
+			target = stack.top().first; stack.pop();
+			if (IsUFG(target) && IsNeighbor(target))
+			{
+				BuildInstructionQueue_MoveToAdjacentCell(target);
+			}
 		}
-		else
+		else // Track Back - compose instructions
 		{
-			std::pair<int, RoboDir> previousPos;
 			do
 			{
-				//take one step back
-				previousPos = { path.back().first,OppositeDir(roboPosDir.dir) };
-				path.erase(path.end() - 1);
-				BuildInstructionQueue_MoveToNext(previousPos);
-			} while (!IsNeighbor(previousPos.first, targetPos.first)); // track back until new targetpos is 
-		}
-		if (!instructionQueue.empty())
-		{
-			Action nextAction = instructionQueue.front(); instructionQueue.pop();
-			switch (nextAction)
+				target = stack.top().first;
+				returnPos = stack.top().second; stack.pop();
+			} while (!IsUFG(target));
+			
+			RoboDir shadowDir = roboPosDir.dir;
+			while (path.back().posIndex != returnPos)
 			{
-			case Action::TurnLeft:
-				FieldMapping_TurnLeft();
-				break;
-			case Action::TurnRight:
-				FieldMapping_TurnRight();
-				break;
-			case Action::MoveForward:
-				FieldMapping_MoveForward();
-				dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
-				break;
-			default:
-				assert(false);
+				RoboDir backwardDir = OppositeDir(path.back().dir);
+				BuildInstructionQueue_BackTrack(shadowDir, backwardDir);
+				path.erase(path.end() - 1);
+				if (path.size() == 0)
+				{
+					return Robo::Action::Done; // We can't track back any further: no target found
+				}
 			}
-			return nextAction;
+			BuildInstructionQueue_BackTrack(shadowDir,GetTargetDirection(target,path.back().posIndex));
 		}
-		return Action::Done;
+		assert(!instructionQueue.empty());
+		Robo::Action nextaction = instructionQueue.front(); instructionQueue.pop();
+		if (nextaction == Robo::Action::Done) return nextaction;
+		if (nextaction == Robo::Action::MoveForward)
+		{
+			int iForward = GetForwardFieldIndex();
+			assert(IsUFG(iForward));
+			assert(target == iForward);
+			assert(fieldMap.find(iForward) != fieldMap.end());
+			if (fieldMap[iForward] == TT::Goal)
+			{
+				while (!instructionQueue.empty()) instructionQueue.pop();
+				instructionQueue.push(Robo::Action::Done);
+			}
+			FieldMapping_MoveForward();
+			//path.push_back(roboPosDir); // NEEDS A FIX
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnLeft)
+		{
+			FieldMapping_TurnLeft();
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnRight)
+		{
+			FieldMapping_TurnRight();
+			return nextaction;
+		}
 	}
 private: //Field info
 	void FieldMapping_TurnRight()
 	{
-		switch (roboPosDir.dir)
-		{
-		case RoboDir::EAST:
-			roboPosDir.dir = RoboDir::SOUTH;
-			break;
-		case RoboDir::WEST:
-			roboPosDir.dir = RoboDir::NORTH;
-			break;
-		case RoboDir::NORTH:
-			roboPosDir.dir = RoboDir::EAST;
-			break;
-		case RoboDir::SOUTH:
-			roboPosDir.dir = RoboDir::WEST;
-			break;
-		default:
-			assert(false);
-		}
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 1) % 4);
 	}
 	void FieldMapping_TurnLeft()
 	{
-		switch (roboPosDir.dir)
-		{
-		case RoboDir::EAST:
-			roboPosDir.dir = RoboDir::NORTH;
-			break;
-		case RoboDir::WEST:
-			roboPosDir.dir = RoboDir::SOUTH;
-			break;
-		case RoboDir::NORTH:
-			roboPosDir.dir = RoboDir::WEST;
-			break;
-		case RoboDir::SOUTH:
-			roboPosDir.dir = RoboDir::EAST;
-			break;
-		default:
-			assert(false);
-		}
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 3) % 4);
 	}
 	void FieldMapping_MoveForward()
 	{
@@ -307,9 +307,9 @@ private: //Field info
 			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth + 1;
 			break;
 		case RoboDir::WEST:
-			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth - 1;
 			visibleCellIndices[1] = roboPosDir.posIndex - 1;
-			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth - 1;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth - 1;
 			break;
 		case RoboDir::NORTH:
 			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
@@ -329,6 +329,17 @@ private: //Field info
 			if (fieldMap.find(visibleCellIndices[i]) == fieldMap.end())
 			{
 				fieldMap[visibleCellIndices[i]] = view[i];
+				if (fieldMap.size() < 85)
+				{
+					out_file << visibleCellIndices[i];
+					out_file << ",";
+					out_file << (int)fieldMap[visibleCellIndices[i]];
+					out_file << "\n";
+				}
+				else
+				{
+					out_file.close();
+				}
 			}
 			else
 			{
@@ -336,10 +347,45 @@ private: //Field info
 			}
 		}
 	}
-	bool IsNeighbor(int index1, int index2)
+	bool IsNeighbor(const int& target) const
 	{
-		int difference = abs(index1 - index2);
+		int difference = abs(target - roboPosDir.posIndex);
 		return (difference == 1 || difference == fieldWidth);
+	}
+	bool IsUFG(const int& index)
+	{
+		auto it = fieldMap.find(index);
+		if (it == fieldMap.end())
+		{
+			return true;
+		}
+		else if (it->second == TT::Floor || it->second == TT::Goal)
+		{
+			 return true;
+		}
+		return false;
+	}
+	RoboDir GetTargetDirection(const int& target, const int& origin) const
+	{
+		int diff = target - origin;
+		switch (diff)
+		{
+		case 1:
+			return RoboDir::EAST;
+			break;
+		case -1:
+			return RoboDir::WEST;
+			break;
+		case fieldWidth:
+			return RoboDir::SOUTH;
+			break;
+		case -fieldWidth:
+			return RoboDir::NORTH;
+			break;
+		default:
+			assert(false);
+		}
+		return RoboDir::count;
 	}
 	static constexpr int maxFieldSideLength = 1000;
 	static constexpr int fieldWidth = 2 * maxFieldSideLength + 1;
@@ -347,7 +393,8 @@ private: //Field info
 	static constexpr int nField = fieldWidth * fieldHeight;
 private: //Position info
 	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::EAST };
-	std::unordered_map<int, TT> fieldMap;
+	//std::unordered_map<int, TT> fieldMap;
+	std::map<int, TT> fieldMap;
 private: //Exploration control
 	int AddCandidateNeighborsToStack()
 	{
@@ -360,52 +407,81 @@ private: //Exploration control
 		{
 			int index = indicesNESW[i];
 			auto it = fieldMap.find(index);
-			if (it == fieldMap.end())
+			if (it == fieldMap.end()) // unexplored
 			{
-				stack.push({ index , RoboDir(i)});
+				stack.push({ index , roboPosDir.posIndex});
 				count++;
 			}
 			else if ((it->second == TT::Floor || it->second == TT::Goal) && // neighbor is accessible
-				visited.find(index) == visited.end())						// neighbor hasn't been visited before
+				(visited.find(index) == visited.end()) )					// neighbor hasn't been visited before
 			{
-				stack.push({ index, RoboDir(i) });
+				stack.push({ index, roboPosDir.posIndex});
 				count++;
 			}
 		}
 		return count;
 	}
-	void BuildInstructionQueue_MoveToNext(const std::pair<int, RoboDir>& targetPosIndex)
+	void BuildInstructionQueue_MoveToAdjacentCell(const int& target) 
 	{
-		int option = (((int)targetPosIndex.second - (int)roboPosDir.dir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
+		if (!IsNeighbor(target)) assert(false);
+		RoboDir targetDir = GetTargetDirection(target, roboPosDir.posIndex);
+		int option = (((int)targetDir - (int)roboPosDir.dir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
 		switch (option)
 		{
 		case 2:
 			instructionQueue.push(Action::TurnLeft);
 			instructionQueue.push(Action::TurnLeft);
-			instructionQueue.push(Action::MoveForward);
 			break;
 		case 1:
 			instructionQueue.push(Action::TurnRight);
-			instructionQueue.push(Action::MoveForward);
 			break;
 		case 3:
 			instructionQueue.push(Action::TurnLeft);
-			instructionQueue.push(Action::MoveForward);
 			break;
 		case 0:
-			instructionQueue.push(Action::MoveForward);
 			break;
 		default:
-			assert(true);
+			assert(false);
 			break;
 		}
+		instructionQueue.push(Action::MoveForward);
+		path.push_back({ target,targetDir });
+		return;
 	}
-	std::stack<std::pair<int,RoboDir>> stack;
+	void BuildInstructionQueue_BackTrack(RoboDir& shadowDir, const RoboDir& backwardDir) 
+	{
+		int option = (((int)backwardDir - (int)shadowDir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
+		switch (option)
+		{
+		case 2:
+			instructionQueue.push(Action::TurnLeft);
+			instructionQueue.push(Action::TurnLeft);
+			shadowDir = RoboDir(((int)shadowDir + 2) % 4);
+			break;
+		case 1:
+			instructionQueue.push(Action::TurnRight);
+			shadowDir = RoboDir(((int)shadowDir + 1) % 4);
+			break;
+		case 3:
+			instructionQueue.push(Action::TurnLeft);
+			shadowDir = RoboDir(((int)shadowDir + 3) % 4);
+			break;
+		case 0:
+			break;
+		default:
+			assert(false);
+			break;
+		}
+		instructionQueue.push(Action::MoveForward);
+		return;
+	}
+	std::stack<std::pair<int,int>> stack;
 	std::unordered_set<int> visited;
-	std::vector<std::pair<int,RoboDir>> path;
+	std::vector<RoboPosDir> path;
 	std::queue<Action> instructionQueue;
 private: //Support data
 	DebugControls& dc;
+	std::ofstream out_file;
 	//std::mt19937 rng = std::mt19937(std::random_device{}());
 	//std::bernoulli_distribution coinflip;
 };
