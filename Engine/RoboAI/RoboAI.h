@@ -28,144 +28,68 @@ struct RoboPosDir // Data structure for tracking the state (position & orientati
 	RoboDir dir = RoboDir::EAST; // orientation
 };
 
-size_t CombineHash(size_t h1, size_t h2)
-{
-	h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
-	return h1;
-}
-namespace std
-{
-	template <> struct hash<RoboPosDir>
-	{
-		size_t operator()(const RoboPosDir& rPosDir) const
-		{
-			std::hash<int> hasher;
-			auto hashx = hasher(rPosDir.posIndex);
-			auto hashy = hasher((int)rPosDir.dir);
-			return CombineHash(hashx, hashy);
-		}
-	};
-	template <> struct equal_to<RoboPosDir>
-	{
-		bool operator()(const RoboPosDir& lhs, const RoboPosDir& rhs) const
-		{
-			return lhs.posIndex == rhs.posIndex && (int)lhs.dir == (int)rhs.dir;
-		}
-	};
-}
-// returns angle in units of pi/2 (90deg you pleb)
-inline int GetAngleBetween( const Direction& d1,const Direction& d2 )
-{
-	constexpr std::array<int,4> map = { 0,2,3,1 };
-	return map[d2.GetIndex()] - map[d1.GetIndex()];
-}
-// angle is in units of pi/2 (90deg you pleb)
-inline Vei2 GetRotated90( const Vei2& v,int angle )
-{
-	Vei2 vo;
-	switch( angle )
-	{
-	case -3:
-		vo.x = -v.y;
-		vo.y = v.x;
-		break;
-	case -2:
-		vo = -v;
-		break;
-	case -1:
-		vo.x = v.y;
-		vo.y = -v.x;
-		break;
-	case 0:
-		vo = v;
-		break;
-	case 1:
-		vo.x = -v.y;
-		vo.y = v.x;
-		break;
-	case 2:
-		vo = -v;
-		break;
-	case 3:
-		vo.x = v.y;
-		vo.y = -v.x;
-		break;
-	default:
-		assert( "Bad angle in Dir rotation!" && false );
-	}
-	return vo;
-}
-
-// demo of how to use DebugControls for visualization
+// test class
 class RoboAI_rvdw
 {
 	using TT = TileMap::TileType;
 	using Action = Robo::Action;
 public:
-	RoboAI_rvdw(DebugControls& dc)
-		:
-		dc(dc),
-		out_file("saved_field.txt")
+	RoboAI_rvdw()
 	{
 		visited.insert(roboPosDir.posIndex);		// Starting position is visited by definition
 		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
 		path.push_back(roboPosDir);					// Path vector starts with startposition
 	}
-	static constexpr bool implemented = false;
+	//static constexpr bool implemented = false;
 	Action Plan(std::array<TT, 3> view)
 	{
 		RecordFieldView(view);
 		if (!instructionQueue.empty()) return ProcessInstruction();
 		int n = AddCandidateNeighborsToStack();
-		if (stack.empty())
+		
+		int target, returnPos;
+		do
 		{
-			int k = 0;
-		}
-		else
-		{
-			int target, returnPos;
-			do
+			if (stack.empty())
 			{
-				if (stack.empty())
-				{
-					int k = 0;
-				}
-				target = stack.top().first;
-				returnPos = stack.top().second; stack.pop();
-			} while (!IsUFG(target));
-
-			if (IsNeighbor(target)) // Move Ahead
-			{
-				RoboDir targetDir = BuildInstructionQueue_MoveToAdjacentCell(target);
-				path.push_back({ target,targetDir });
+				return Robo::Action::Done;
 			}
-			else
+			target = stack.top().first;
+			returnPos = stack.top().second; stack.pop();
+		} while (!IsUFG(target));
+
+		if (IsNeighbor(target)) // Move Ahead
+		{
+			RoboDir targetDir = BuildInstructionQueue_MoveToAdjacentCell(target);
+			path.push_back({ target,targetDir });
+		}
+		else //backtrack
+		{
+			RoboDir shadowDir = roboPosDir.dir;
+			if (path.size() == 0)
 			{
-				//backtrack
-				RoboDir shadowDir = roboPosDir.dir;
+				while (!instructionQueue.empty()) instructionQueue.pop();
+				return Robo::Action::Done; // We can't track back any further: no target found
+			}
+			while (path.back().posIndex != returnPos)
+			{
+				RoboDir backwardDir = OppositeDir(path.back().dir);
+				BuildInstructionQueue_BackTrack(shadowDir, backwardDir);
+				path.erase(path.end() - 1);
 				if (path.size() == 0)
 				{
 					while (!instructionQueue.empty()) instructionQueue.pop();
 					return Robo::Action::Done; // We can't track back any further: no target found
 				}
-				while (path.back().posIndex != returnPos)
-				{
-					RoboDir backwardDir = OppositeDir(path.back().dir);
-					BuildInstructionQueue_BackTrack(shadowDir, backwardDir);
-					path.erase(path.end() - 1);
-					if (path.size() == 0)
-					{
-						while (!instructionQueue.empty()) instructionQueue.pop();
-						return Robo::Action::Done; // We can't track back any further: no target found
-					}
-				}
-				RoboDir targetDir = GetTargetDirection(target, path.back().posIndex);
-				BuildInstructionQueue_BackTrack(shadowDir, targetDir);
-				path.push_back({ target,targetDir });
 			}
+			RoboDir targetDir = GetTargetDirection(target, path.back().posIndex);
+			BuildInstructionQueue_BackTrack(shadowDir, targetDir);
+			path.push_back({ target,targetDir });
 		}
 		assert(!instructionQueue.empty());
 		if (!instructionQueue.empty()) return ProcessInstruction();
+		assert(false);
+		return Robo::Action::Done;
 	}
 private: //Field info
 	void FieldMapping_TurnRight()
@@ -215,6 +139,7 @@ private: //Field info
 		default:
 			assert(false);
 		}
+		return -1;
 	}
 	void RecordFieldView(const std::array<TT, 3>& view)
 	{
@@ -249,17 +174,6 @@ private: //Field info
 			if (fieldMap.find(visibleCellIndices[i]) == fieldMap.end())
 			{
 				fieldMap[visibleCellIndices[i]] = view[i];
-				if (fieldMap.size() < 85)
-				{
-					out_file << visibleCellIndices[i];
-					out_file << ",";
-					out_file << (int)fieldMap[visibleCellIndices[i]];
-					out_file << "\n";
-				}
-				else
-				{
-					out_file.close();
-				}
 			}
 			else
 			{
@@ -313,7 +227,6 @@ private: //Field info
 	static constexpr int nField = fieldWidth * fieldHeight;
 private: //Position info
 	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::EAST };
-	//std::unordered_map<int, TT> fieldMap;
 	std::map<int, TT> fieldMap;
 private: //Exploration control
 	int AddCandidateNeighborsToStack()
@@ -430,20 +343,16 @@ private: //Exploration control
 			FieldMapping_TurnRight();
 			return nextaction;
 		}
-
+		assert(false);
+		return nextaction;
 	}
 	std::stack<std::pair<int, int>> stack;
 	std::unordered_set<int> visited;
 	std::vector<RoboPosDir> path;
 	std::queue<Action> instructionQueue;
-private: //Support data
-	DebugControls& dc;
-	std::ofstream out_file;
-	//std::mt19937 rng = std::mt19937(std::random_device{}());
-	//std::bernoulli_distribution coinflip;
 };
 
-// demo of how to use DebugControls for visualization
+// Debug  / visualization class
 class RoboAIDebug_rvdw
 {
 	using TT = TileMap::TileType;
@@ -458,11 +367,12 @@ public:
 		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
 		path.push_back(roboPosDir);					// Path vector starts with startposition
 	}
-	static constexpr bool implemented = false;
+	static constexpr bool implemented = true;
 	Action Plan(std::array<TT, 3> view)
 	{
 		RecordFieldView(view);
 		if (!instructionQueue.empty()) return ProcessInstruction();
+		dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
 		int n = AddCandidateNeighborsToStack();
 		if (stack.empty())
 		{
@@ -513,6 +423,7 @@ public:
 		}
 		assert(!instructionQueue.empty());
 		if (!instructionQueue.empty()) return ProcessInstruction();
+		dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
 	}
 private: //Field info
 	void FieldMapping_TurnRight()
@@ -660,7 +571,6 @@ private: //Field info
 	static constexpr int nField = fieldWidth * fieldHeight;
 private: //Position info
 	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::EAST };
-	//std::unordered_map<int, TT> fieldMap;
 	std::map<int, TT> fieldMap;
 private: //Exploration control
 	int AddCandidateNeighborsToStack()
@@ -786,13 +696,7 @@ private: //Exploration control
 private: //Support data
 	DebugControls& dc;
 	std::ofstream out_file;
-	//std::mt19937 rng = std::mt19937(std::random_device{}());
-	//std::bernoulli_distribution coinflip;
 };
 // if you name your classes different than RoboAI/RoboAIDebug, use typedefs like these
 typedef RoboAI_rvdw RoboAI;
 typedef RoboAIDebug_rvdw RoboAIDebug;
-
-// TODO: Fix performance for large max map size (block-clean min-max)
-// TODO: test perf walk-clean vs. block clean vs. map
-// TODO: implement non-slide (turn counting) dijkturn with map
