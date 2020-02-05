@@ -37,13 +37,60 @@ public:
 	RoboAI_rvdw()
 	{
 		visited.insert(roboPosDir.posIndex);		// Starting position is visited by definition
-		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
+		//fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
 		path.push_back(roboPosDir);					// Path vector starts with startposition
 	}
+	int SquareDanceToggle = 1;
+	std::queue<Robo::Action> ReturnFromSquareDanceQueue;
 	//static constexpr bool implemented = false;
 	Action Plan(std::array<TT, 3> view)
 	{
 		RecordFieldView(view);
+		if (SquareDanceToggle)
+		{
+			if (!instructionQueue.empty()) return ProcessInstruction();
+			switch (SquareDanceToggle)
+			{
+			case 1:
+				if (fieldMap[GetForwardFieldIndex()] == TT::Goal)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::Done);
+					SquareDanceToggle = 3;
+				}
+				else if (fieldMap[GetForwardFieldIndex()] == TT::Floor)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					SquareDanceToggle = 2;
+				}
+				else
+				{
+					instructionQueue.push(Robo::Action::TurnLeft);
+					ReturnFromSquareDanceQueue.push(Robo::Action::TurnRight);
+				}
+				break;
+			case 2:
+				instructionQueue.push(Robo::Action::MoveForward);
+				if (fieldMap[GetForwardFieldIndex()] == TT::Goal)
+				{
+					instructionQueue.push(Robo::Action::Done);
+				}
+				else
+				{
+					while (!ReturnFromSquareDanceQueue.empty())
+					{
+						instructionQueue.push(ReturnFromSquareDanceQueue.front()); ReturnFromSquareDanceQueue.pop();
+					}
+					visited.erase(roboPosDir.posIndex);
+				}
+				SquareDanceToggle = 0;
+				break;
+			}
+		}
 		if (!instructionQueue.empty()) return ProcessInstruction();
 		int n = AddCandidateNeighborsToStack();
 		
@@ -364,28 +411,75 @@ public:
 		out_file("saved_field.txt")
 	{
 		visited.insert(roboPosDir.posIndex);		// Starting position is visited by definition
-		fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
+		//fieldMap[roboPosDir.posIndex] = TT::Floor;	// Starting position is a Floor tile by definition
 		path.push_back(roboPosDir);					// Path vector starts with startposition
 	}
+	int SquareDanceToggle = 1;
+	std::queue<Robo::Action> ReturnFromSquareDanceQueue;
 	static constexpr bool implemented = true;
 	Action Plan(std::array<TT, 3> view)
 	{
 		RecordFieldView(view);
+		if (SquareDanceToggle)
+		{
+			if (!instructionQueue.empty()) return ProcessInstruction();
+			switch (SquareDanceToggle)
+			{
+			case 1:
+				if (fieldMap[GetForwardFieldIndex()] == TT::Goal)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::Done);
+					SquareDanceToggle = 3;
+				}
+				else if (fieldMap[GetForwardFieldIndex()] == TT::Floor)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					SquareDanceToggle = 2;
+				}
+				else
+				{
+					instructionQueue.push(Robo::Action::TurnLeft);
+					ReturnFromSquareDanceQueue.push(Robo::Action::TurnRight);
+				}
+				break;
+			case 2:
+				instructionQueue.push(Robo::Action::MoveForward);
+				if (fieldMap[GetForwardFieldIndex()] == TT::Goal)
+				{
+					instructionQueue.push(Robo::Action::Done);
+				}
+				else
+				{
+					while (!ReturnFromSquareDanceQueue.empty()) 
+					{
+						instructionQueue.push(ReturnFromSquareDanceQueue.front()); ReturnFromSquareDanceQueue.pop();
+					}
+					visited.erase(roboPosDir.posIndex);
+				}
+				SquareDanceToggle = 0;
+				break;
+			}
+		}
 		if (!instructionQueue.empty()) return ProcessInstruction();
 		dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
 		int n = AddCandidateNeighborsToStack();
-		if (stack.empty())
-		{
-			int k = 0;
-		}
-		else
+		//if (nSteps > 2000)
+		//{
+		//	return Action::Done;
+		//}
+		//else
 		{
 			int target, returnPos;
 			do
 			{
 				if (stack.empty())
 				{
-					int k = 0;
+					return Action::Done;
 				}
 				target = stack.top().first;
 				returnPos = stack.top().second; stack.pop();
@@ -565,13 +659,13 @@ private: //Field info
 		}
 		return RoboDir::count;
 	}
-	static constexpr int maxFieldSideLength = 1004;
+	static constexpr int maxFieldSideLength = 2000;
 	static constexpr int fieldWidth = 2 * maxFieldSideLength + 1;
 	static constexpr int fieldHeight = fieldWidth;
 	static constexpr int nField = fieldWidth * fieldHeight;
 private: //Position info
 	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::EAST };
-	std::map<int, TT> fieldMap;
+	std::unordered_map<int, TT> fieldMap;
 private: //Exploration control
 	int AddCandidateNeighborsToStack()
 	{

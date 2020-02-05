@@ -227,7 +227,8 @@ public:
 		Goal,
 		Invalid
 	};
-private:
+public:
+	//RVDWprivate:
 	struct Tile
 	{
 		Tile() = default;

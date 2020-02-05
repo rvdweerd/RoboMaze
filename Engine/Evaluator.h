@@ -48,6 +48,11 @@ public:
 		while( !IsFinished() && simulations.back()->Finished() )
 		{
 			const auto& s = *simulations.back();
+			if (s.GetState() == Simulator::State::Failure)
+			{
+				s.map.Save("failmaze.txt");
+			}
+			
 			results.push_back( {
 				s.GetSeed(),
 				s.GetWorkingTime(),

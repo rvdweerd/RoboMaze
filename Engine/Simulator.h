@@ -100,7 +100,9 @@ public:
 	{
 		return 0.0f;
 	}
-protected:
+
+public:
+//RVDW protected:
 	void IncrementMoveCount()
 	{
 		move_count++;
