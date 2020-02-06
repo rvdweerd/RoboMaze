@@ -253,6 +253,7 @@
     <Image Include="Chili.ico" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="Maps\empty_map.txt" />
     <Text Include="Maps\failmaze.txt" />
     <Text Include="Maps\map_proc.txt" />
     <Text Include="Maps\test_map.txt" />

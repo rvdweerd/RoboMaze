@@ -199,6 +199,9 @@
     <Text Include="Maps\failmaze.txt">
       <Filter>Maps</Filter>
     </Text>
+    <Text Include="Maps\empty_map.txt">
+      <Filter>Maps</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="sim.ini">
