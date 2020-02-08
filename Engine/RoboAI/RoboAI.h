@@ -1361,8 +1361,706 @@ private:
 };
 
 
+class RoboAI_rvdw2
+{
+public:
+	RoboAI_rvdw2()
+		:
+		//dc(dc)
+		fieldArray(fieldSize)
+	{
+		for (size_t i = 0; i < fieldSize; i++)
+		{
+			fieldArray[i] = TileMap::TileType::Invalid;
+		}
+	}
+	Robo::Action Plan(std::array<TileMap::TileType, 3> view)
+	{
+		RecordFieldView(view);
+		if (SquareDanceToggle)
+		{
+			if (!instructionQueue.empty()) return ProcessInstruction();
+			switch (SquareDanceToggle)
+			{
+			case 1:
+				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::Done);
+					SquareDanceToggle = 3;
+				}
+				else if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Floor)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					SquareDanceToggle = 2;
+				}
+				else
+				{
+					instructionQueue.push(Robo::Action::TurnLeft);
+					ReturnFromSquareDanceQueue.push(Robo::Action::TurnRight);
+				}
+				break;
+			case 2:
+				instructionQueue.push(Robo::Action::MoveForward);
+				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				{
+					instructionQueue.push(Robo::Action::Done);
+				}
+				else
+				{
+					while (!ReturnFromSquareDanceQueue.empty())
+					{
+						instructionQueue.push(ReturnFromSquareDanceQueue.front()); ReturnFromSquareDanceQueue.pop();
+					}
+				}
+				SquareDanceToggle = 0;
+				break;
+			}
+		}
+
+		if (!instructionQueue.empty()) return ProcessInstruction();
+		int iNext = GetForwardFieldIndex();
+		if (fieldArray[iNext] == TileMap::TileType::Floor)
+		{
+			Shadow_MoveForward();
+			return Robo::Action::MoveForward;
+		}
+		else if (fieldArray[iNext] == TileMap::TileType::Goal)
+		{
+			assert(instructionQueue.empty());
+			instructionQueue.push(Robo::Action::Done);
+			Shadow_MoveForward();
+			return Robo::Action::MoveForward;
+		}
+		else
+		{
+			std::vector<size_t> path = Shadow_GetPathToNearestUnexplored();
+			if (path.size() == 0) return Robo::Action::Done;
+			BuildInstructions(path);
+		}
+		if (!instructionQueue.empty()) return ProcessInstruction();
+
+		assert(false);
+		return Robo::Action::Done;
+	}
+	int SquareDanceToggle = 1;
+	std::queue<Robo::Action> ReturnFromSquareDanceQueue;
+	//static constexpr bool implemented = true;
+	Robo::Action ProcessInstruction()
+	{
+		//lastPos = roboPosDir.posIndex;
+		Robo::Action nextaction = instructionQueue.front(); instructionQueue.pop();
+		if (nextaction == Robo::Action::Done) return nextaction;
+		if (nextaction == Robo::Action::MoveForward)
+		{
+			size_t iForward = GetForwardFieldIndex();
+			if (fieldArray[iForward] == TileMap::TileType::Goal)
+			{
+				while (!instructionQueue.empty()) instructionQueue.pop();
+				instructionQueue.push(Robo::Action::Done);
+			}
+			Shadow_MoveForward();
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnLeft)
+		{
+			Shadow_TurnLeft();
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnRight)
+		{
+			Shadow_TurnRight();
+			return nextaction;
+		}
+		assert(false);
+		return nextaction;
+	}
+	void BuildInstructions(std::vector<size_t> path)
+	{
+		assert(instructionQueue.empty());
+		assert(path.size() > 0);
+		size_t nPathStep = 0;
+
+		RoboPosDir roboPosDir_orig = roboPosDir;
+
+		while (true)
+		{
+			size_t curPos = (size_t)roboPosDir.posIndex;
+			RoboDir curDir = roboPosDir.dir;
+			// Align to next cell on pathway
+			RoboDir targetDir = GetTargetDirection(path[nPathStep], curPos);
+			int option = (((int)targetDir - (int)curDir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
+			switch (option)
+			{
+			case 2:
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				break;
+			case 1:
+				instructionQueue.push(Robo::Action::TurnRight);
+				Shadow_TurnRight();
+				break;
+			case 3:
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				break;
+			case 0:
+				break;
+			default:
+				assert(false);
+				break;
+			}
+			if (nPathStep == path.size() - 1)
+			{
+				roboPosDir = roboPosDir_orig;
+				return;
+			}
+			nPathStep++;
+			instructionQueue.push(Robo::Action::MoveForward);
+			Shadow_MoveForward();
+		}
+	}
+	RoboDir GetTargetDirection(const size_t& target, const size_t& origin) const
+	{
+		int diff = (int)target - (int)origin;
+		switch (diff)
+		{
+		case 1:
+			return RoboDir::EAST;
+			break;
+		case -1:
+			return RoboDir::WEST;
+			break;
+		case fieldWidth:
+			return RoboDir::SOUTH;
+			break;
+		case -(int)fieldWidth:
+			return RoboDir::NORTH;
+			break;
+		default:
+			assert(false);
+		}
+		return RoboDir::count;
+	}
+	std::vector<size_t> Shadow_GetPathToNearestUnexplored()
+	{
+		struct Pos
+		{
+			size_t pos;
+			std::vector<size_t> path;
+		};
+		Pos curPos = { (size_t)roboPosDir.posIndex,{} };
+		std::queue<Pos> queue;
+		std::unordered_set<size_t> visited;
+		visited.insert(curPos.pos);
+		queue.push(curPos);
+		while (!queue.empty())
+		{
+			curPos = queue.front(); queue.pop();
+			for (size_t nextPosIndex : Shadow_GetCandidateNeighborIndices(curPos.pos, visited))
+			{
+				assert(fieldArray[nextPosIndex] != TileMap::TileType::Wall);
+				std::vector<size_t> newPath = curPos.path;
+				switch (fieldArray[nextPosIndex])
+				{
+				case TileMap::TileType::Floor:
+					newPath.push_back(nextPosIndex);
+					queue.push({ nextPosIndex,newPath });
+					break;
+				default:
+					newPath.push_back(nextPosIndex);
+					return newPath;
+					break;
+				}
+			}
+		}
+		//assert(false);
+		return {};
+	}
+	std::vector<size_t> Shadow_GetCandidateNeighborIndices(size_t pos, std::unordered_set<size_t>& visited)
+	{
+		std::vector<size_t> returnVec;
+		std::array<size_t, 4> indicesNESW = { pos - fieldWidth,
+											pos + 1,
+											pos + fieldWidth,
+											pos - 1 };
+		for (size_t i = 0; i < 4; i++)
+		{
+			size_t index = indicesNESW[i];
+			if (fieldArray[index] != TileMap::TileType::Wall && visited.find(index) == visited.end())
+			{
+				returnVec.emplace_back(index);
+				visited.insert(index);
+			}
+		}
+		return returnVec;
+	}
+	void Shadow_MoveForward()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			roboPosDir.posIndex++;
+			break;
+		case RoboDir::WEST:
+			roboPosDir.posIndex--;
+			break;
+		case RoboDir::NORTH:
+			roboPosDir.posIndex -= fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			roboPosDir.posIndex += fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+	}
+	void Shadow_TurnLeft()
+	{
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 3) % 4);
+	}
+	void Shadow_TurnRight()
+	{
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 1) % 4);
+	}
+	int GetForwardFieldIndex()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			return roboPosDir.posIndex + 1;
+			break;
+		case RoboDir::WEST:
+			return roboPosDir.posIndex - 1;
+			break;
+		case RoboDir::NORTH:
+			return roboPosDir.posIndex - fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			return roboPosDir.posIndex + fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+		return -1;
+	}
+	void RecordFieldView(const std::array<TileMap::TileType, 3>& view)
+	{
+		std::array<int, 3> visibleCellIndices;
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + 1;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth + 1;
+			break;
+		case RoboDir::WEST:
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - 1;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth - 1;
+			break;
+		case RoboDir::NORTH:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth + 1;
+			break;
+		case RoboDir::SOUTH:
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth - 1;
+			break;
+		default:
+			assert(false);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			if (fieldArray[visibleCellIndices[i]] == TileMap::TileType::Invalid)
+			{
+				fieldArray[visibleCellIndices[i]] = view[i];
+			}
+			else
+			{
+				assert(fieldArray[visibleCellIndices[i]] == view[i]); // Check if field informatino is consistent with earlier observation
+			}
+		}
+	}
+private:
+	static constexpr size_t maxFieldSideLength = 1002;
+	static constexpr size_t fieldWidth = 2 * maxFieldSideLength + 1;
+	static constexpr size_t fieldHeight = fieldWidth;
+	static constexpr size_t fieldSize = fieldWidth * fieldHeight;
+	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::WEST };
+	std::vector<TileMap::TileType> fieldArray;
+	//DebugControls& dc;
+	std::queue<Robo::Action> instructionQueue;
+};
+
+class RoboAIDebug_rvdw2
+{
+public:
+	RoboAIDebug_rvdw2(DebugControls& dc)
+		:
+		dc(dc)
+		//fieldArray(new unsigned[fieldSize])
+	{
+		for (size_t i = 0; i < fieldSize; i++)
+		{
+			fieldArray[i] = TileMap::TileType::Invalid;
+		}
+	}
+	Robo::Action Plan(std::array<TileMap::TileType, 3> view)
+	{
+		RecordFieldView(view);
+		if (SquareDanceToggle)
+		{
+			if (!instructionQueue.empty()) return ProcessInstruction();
+			switch (SquareDanceToggle)
+			{
+			case 1:
+				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::Done);
+					SquareDanceToggle = 3;
+				}
+				else if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Floor)
+				{
+					instructionQueue.push(Robo::Action::MoveForward);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					instructionQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					//ReturnFromSquareDanceQueue.push(Robo::Action::TurnLeft);
+					SquareDanceToggle = 2;
+				}
+				else
+				{
+					instructionQueue.push(Robo::Action::TurnLeft);
+					ReturnFromSquareDanceQueue.push(Robo::Action::TurnRight);
+				}
+				break;
+			case 2:
+				instructionQueue.push(Robo::Action::MoveForward);
+				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				{
+					instructionQueue.push(Robo::Action::Done);
+				}
+				else
+				{
+					while (!ReturnFromSquareDanceQueue.empty())
+					{
+						instructionQueue.push(ReturnFromSquareDanceQueue.front()); ReturnFromSquareDanceQueue.pop();
+					}
+				}
+				SquareDanceToggle = 0;
+				break;
+			}
+		}
+
+		if (!instructionQueue.empty()) return ProcessInstruction();
+		dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
+		int iNext = GetForwardFieldIndex();
+		if (fieldArray[iNext] == TileMap::TileType::Floor)
+		{
+			Shadow_MoveForward();
+			return Robo::Action::MoveForward;
+		}
+		else if (fieldArray[iNext] == TileMap::TileType::Goal)
+		{
+			assert(instructionQueue.empty());
+			instructionQueue.push(Robo::Action::Done);
+			Shadow_MoveForward();
+			return Robo::Action::MoveForward;
+		}
+		else
+		{
+			std::vector<size_t> path = Shadow_GetPathToNearestUnexplored();
+			if (path.size() == 0) return Robo::Action::Done;
+			BuildInstructions(path);
+		}
+		if (!instructionQueue.empty()) return ProcessInstruction();
+		dc.MarkAt(dc.GetRobotPosition(), { Colors::Green,32u });
+
+		assert(false);
+		return Robo::Action::Done;
+	}
+	int SquareDanceToggle = 1;
+	std::queue<Robo::Action> ReturnFromSquareDanceQueue;
+	static constexpr bool implemented = true;
+	Robo::Action ProcessInstruction()
+	{
+		//lastPos = roboPosDir.posIndex;
+		Robo::Action nextaction = instructionQueue.front(); instructionQueue.pop();
+		if (nextaction == Robo::Action::Done) return nextaction;
+		if (nextaction == Robo::Action::MoveForward)
+		{
+			size_t iForward = GetForwardFieldIndex();
+			if (fieldArray[iForward] == TileMap::TileType::Goal)
+			{
+				while (!instructionQueue.empty()) instructionQueue.pop();
+				instructionQueue.push(Robo::Action::Done);
+			}
+			Shadow_MoveForward();
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnLeft)
+		{
+			Shadow_TurnLeft();
+			return nextaction;
+		}
+		else if (nextaction == Robo::Action::TurnRight)
+		{
+			Shadow_TurnRight();
+			return nextaction;
+		}
+		assert(false);
+		return nextaction;
+	}
+	void BuildInstructions(std::vector<size_t> path)
+	{
+		assert(instructionQueue.empty());
+		assert(path.size() > 0);
+		size_t nPathStep = 0;
+
+		RoboPosDir roboPosDir_orig = roboPosDir;
+
+		while (true)
+		{
+			size_t curPos = (size_t)roboPosDir.posIndex;
+			RoboDir curDir = roboPosDir.dir;
+			// Align to next cell on pathway
+			RoboDir targetDir = GetTargetDirection(path[nPathStep], curPos);
+			int option = (((int)targetDir - (int)curDir) + 4) % 4; // Modular arithmetic to turn Robot towards target position
+			switch (option)
+			{
+			case 2:
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				break;
+			case 1:
+				instructionQueue.push(Robo::Action::TurnRight);
+				Shadow_TurnRight();
+				break;
+			case 3:
+				instructionQueue.push(Robo::Action::TurnLeft);
+				Shadow_TurnLeft();
+				break;
+			case 0:
+				break;
+			default:
+				assert(false);
+				break;
+			}
+			if (nPathStep == path.size() - 1)
+			{
+				roboPosDir = roboPosDir_orig;
+				return;
+			}
+			nPathStep++;
+			instructionQueue.push(Robo::Action::MoveForward);
+			Shadow_MoveForward();
+		}
+	}
+	RoboDir GetTargetDirection(const size_t& target, const size_t& origin) const
+	{
+		int diff = (int)target - (int)origin;
+		switch (diff)
+		{
+		case 1:
+			return RoboDir::EAST;
+			break;
+		case -1:
+			return RoboDir::WEST;
+			break;
+		case fieldWidth:
+			return RoboDir::SOUTH;
+			break;
+		case -(int)fieldWidth:
+			return RoboDir::NORTH;
+			break;
+		default:
+			assert(false);
+		}
+		return RoboDir::count;
+	}
+	std::vector<size_t> Shadow_GetPathToNearestUnexplored()
+	{
+		struct Pos
+		{
+			size_t pos;
+			std::vector<size_t> path;
+		};
+		Pos curPos = { (size_t)roboPosDir.posIndex,{} };
+		std::queue<Pos> queue;
+		std::unordered_set<size_t> visited;
+		visited.insert(curPos.pos);
+		queue.push(curPos);
+		while (!queue.empty())
+		{
+			curPos = queue.front(); queue.pop();
+			for (size_t nextPosIndex : Shadow_GetCandidateNeighborIndices(curPos.pos,visited))
+			{
+				assert(fieldArray[nextPosIndex] != TileMap::TileType::Wall);
+				std::vector<size_t> newPath = curPos.path;
+				switch (fieldArray[nextPosIndex])
+				{
+				case TileMap::TileType::Floor:
+					newPath.push_back(nextPosIndex);
+					queue.push({ nextPosIndex,newPath });
+					break;
+				default: 
+					newPath.push_back(nextPosIndex);
+					{
+						size_t startindex = (size_t)roboPosDir.posIndex;
+						size_t endindex = nextPosIndex;
+						int startX = startindex % fieldWidth;
+						int startY = startindex / fieldWidth;
+						int endX = endindex % fieldWidth;
+						int endY = endindex / fieldWidth;
+						int dx = endX - startX;
+						int dy = endY - startY;
+						Vei2 p = dc.GetRobotPosition();
+						p.x += dx;
+						p.y += dy;
+						dc.MarkAt(p, { Colors::Red,32u });
+					}
+					return newPath;
+					break;
+				}
+			}
+		}
+		//assert(false);
+		return {};
+	}
+	std::vector<size_t> Shadow_GetCandidateNeighborIndices(size_t pos, std::unordered_set<size_t>& visited)
+	{
+		std::vector<size_t> returnVec;
+		std::array<size_t, 4> indicesNESW = { pos - fieldWidth,
+											pos + 1,
+											pos + fieldWidth,
+											pos - 1 };
+		for (size_t i = 0; i < 4; i++)
+		{
+			size_t index = indicesNESW[i];
+			if (fieldArray[index] != TileMap::TileType::Wall && visited.find(index) == visited.end() )
+			{
+				returnVec.emplace_back(index);
+				visited.insert(index);
+			}
+		}
+		return returnVec;
+	}
+	void Shadow_MoveForward()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			roboPosDir.posIndex++;
+			break;
+		case RoboDir::WEST:
+			roboPosDir.posIndex--;
+			break;
+		case RoboDir::NORTH:
+			roboPosDir.posIndex -= fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			roboPosDir.posIndex += fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+	}
+	void Shadow_TurnLeft()
+	{
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 3) % 4);
+	}
+	void Shadow_TurnRight()
+	{
+		roboPosDir.dir = RoboDir(((int)roboPosDir.dir + 1) % 4);
+	}
+	int GetForwardFieldIndex()
+	{
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			return roboPosDir.posIndex + 1;
+			break;
+		case RoboDir::WEST:
+			return roboPosDir.posIndex - 1;
+			break;
+		case RoboDir::NORTH:
+			return roboPosDir.posIndex - fieldWidth;
+			break;
+		case RoboDir::SOUTH:
+			return roboPosDir.posIndex + fieldWidth;
+			break;
+		default:
+			assert(false);
+		}
+		return -1;
+	}
+	void RecordFieldView(const std::array<TileMap::TileType, 3>& view)
+	{
+		std::array<int, 3> visibleCellIndices;
+		switch (roboPosDir.dir)
+		{
+		case RoboDir::EAST:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + 1;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth + 1;
+			break;
+		case RoboDir::WEST:
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - 1;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth - 1;
+			break;
+		case RoboDir::NORTH:
+			visibleCellIndices[0] = roboPosDir.posIndex - fieldWidth - 1;
+			visibleCellIndices[1] = roboPosDir.posIndex - fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex - fieldWidth + 1;
+			break;
+		case RoboDir::SOUTH:
+			visibleCellIndices[0] = roboPosDir.posIndex + fieldWidth + 1;
+			visibleCellIndices[1] = roboPosDir.posIndex + fieldWidth;
+			visibleCellIndices[2] = roboPosDir.posIndex + fieldWidth - 1;
+			break;
+		default:
+			assert(false);
+		}
+		for (size_t i = 0; i < 3; i++)
+		{
+			if (fieldArray[visibleCellIndices[i]] == TileMap::TileType::Invalid)
+			{
+				fieldArray[visibleCellIndices[i]] = view[i];
+			}
+			else
+			{
+				assert(fieldArray[visibleCellIndices[i]] == view[i]); // Check if field informatino is consistent with earlier observation
+			}
+		}
+	}
+private:
+	static constexpr size_t maxFieldSideLength = 1004;
+	static constexpr size_t fieldWidth = 2 * maxFieldSideLength + 1;
+	static constexpr size_t fieldHeight = fieldWidth;
+	static constexpr size_t fieldSize = fieldWidth*fieldHeight;
+	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::WEST };
+	std::array<TileMap::TileType,fieldSize> fieldArray;
+	DebugControls& dc;
+	std::queue<Robo::Action> instructionQueue;
+};
+
+
+
 // if you name your classes different than RoboAI/RoboAIDebug, use typedefs like these
-typedef RoboAI_rvdw RoboAI;
-typedef RoboAIDebug_rvdw RoboAIDebug;
+typedef RoboAI_rvdw2 RoboAI;
+typedef RoboAIDebug_rvdw2 RoboAIDebug;
 //typedef RoboAI_chili RoboAI;
 //typedef RoboAIDebug_chili RoboAIDebug;
