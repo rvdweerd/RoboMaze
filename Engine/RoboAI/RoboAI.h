@@ -1365,14 +1365,14 @@ class RoboAI_rvdw2
 {
 public:
 	RoboAI_rvdw2()
-		:
+		//:
 		//dc(dc)
-		fieldArray(fieldSize)
+		//fieldMap(fieldSize)
 	{
-		for (size_t i = 0; i < fieldSize; i++)
-		{
-			fieldArray[i] = TileMap::TileType::Invalid;
-		}
+		//for (size_t i = 0; i < fieldSize; i++)
+		//{
+		//	fieldMap[i] = TileMap::TileType::Invalid;
+		//}
 	}
 	Robo::Action Plan(std::array<TileMap::TileType, 3> view)
 	{
@@ -1383,13 +1383,13 @@ public:
 			switch (SquareDanceToggle)
 			{
 			case 1:
-				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				if (fieldMap[GetForwardFieldIndex()] == TileMap::TileType::Goal)
 				{
 					instructionQueue.push(Robo::Action::MoveForward);
 					instructionQueue.push(Robo::Action::Done);
 					SquareDanceToggle = 3;
 				}
-				else if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Floor)
+				else if (fieldMap[GetForwardFieldIndex()] == TileMap::TileType::Floor)
 				{
 					instructionQueue.push(Robo::Action::MoveForward);
 					instructionQueue.push(Robo::Action::TurnLeft);
@@ -1406,7 +1406,7 @@ public:
 				break;
 			case 2:
 				instructionQueue.push(Robo::Action::MoveForward);
-				if (fieldArray[GetForwardFieldIndex()] == TileMap::TileType::Goal)
+				if (fieldMap[GetForwardFieldIndex()] == TileMap::TileType::Goal)
 				{
 					instructionQueue.push(Robo::Action::Done);
 				}
@@ -1424,12 +1424,12 @@ public:
 
 		if (!instructionQueue.empty()) return ProcessInstruction();
 		int iNext = GetForwardFieldIndex();
-		if (fieldArray[iNext] == TileMap::TileType::Floor)
+		if (fieldMap[iNext] == TileMap::TileType::Floor)
 		{
 			Shadow_MoveForward();
 			return Robo::Action::MoveForward;
 		}
-		else if (fieldArray[iNext] == TileMap::TileType::Goal)
+		else if (fieldMap[iNext] == TileMap::TileType::Goal)
 		{
 			assert(instructionQueue.empty());
 			instructionQueue.push(Robo::Action::Done);
@@ -1458,7 +1458,7 @@ public:
 		if (nextaction == Robo::Action::MoveForward)
 		{
 			size_t iForward = GetForwardFieldIndex();
-			if (fieldArray[iForward] == TileMap::TileType::Goal)
+			if (fieldMap[iForward] == TileMap::TileType::Goal)
 			{
 				while (!instructionQueue.empty()) instructionQueue.pop();
 				instructionQueue.push(Robo::Action::Done);
@@ -1565,18 +1565,23 @@ public:
 			curPos = queue.front(); queue.pop();
 			for (size_t nextPosIndex : Shadow_GetCandidateNeighborIndices(curPos.pos, visited))
 			{
-				assert(fieldArray[nextPosIndex] != TileMap::TileType::Wall);
+				//assert(fieldMap[nextPosIndex] != TileMap::TileType::Wall);
 				std::vector<size_t> newPath = curPos.path;
-				switch (fieldArray[nextPosIndex])
+				auto it = fieldMap.find(nextPosIndex);
+				if (it == fieldMap.end())
 				{
-				case TileMap::TileType::Floor:
-					newPath.push_back(nextPosIndex);
-					queue.push({ nextPosIndex,newPath });
-					break;
-				default:
 					newPath.push_back(nextPosIndex);
 					return newPath;
-					break;
+				}
+				else if (it->second == TileMap::TileType::Floor)
+				{
+					newPath.push_back(nextPosIndex);
+					queue.push({ nextPosIndex,newPath });
+				}
+				else
+				{
+					newPath.push_back(nextPosIndex);
+					return newPath;
 				}
 			}
 		}
@@ -1593,7 +1598,13 @@ public:
 		for (size_t i = 0; i < 4; i++)
 		{
 			size_t index = indicesNESW[i];
-			if (fieldArray[index] != TileMap::TileType::Wall && visited.find(index) == visited.end())
+			auto it = fieldMap.find(index);
+			if (it == fieldMap.end())
+			{
+				returnVec.emplace_back(index);
+				visited.insert(index);
+			}
+			else if (it->second != TileMap::TileType::Wall && visited.find(index) == visited.end())
 			{
 				returnVec.emplace_back(index);
 				visited.insert(index);
@@ -1680,13 +1691,14 @@ public:
 		}
 		for (size_t i = 0; i < 3; i++)
 		{
-			if (fieldArray[visibleCellIndices[i]] == TileMap::TileType::Invalid)
+			auto it = fieldMap.find(visibleCellIndices[i]);
+			if (it == fieldMap.end())
 			{
-				fieldArray[visibleCellIndices[i]] = view[i];
+				fieldMap[visibleCellIndices[i]] = view[i];
 			}
 			else
 			{
-				assert(fieldArray[visibleCellIndices[i]] == view[i]); // Check if field informatino is consistent with earlier observation
+				assert(fieldMap[visibleCellIndices[i]] == view[i]); // Check if field informatino is consistent with earlier observation
 			}
 		}
 	}
@@ -1696,7 +1708,8 @@ private:
 	static constexpr size_t fieldHeight = fieldWidth;
 	static constexpr size_t fieldSize = fieldWidth * fieldHeight;
 	RoboPosDir roboPosDir = { (fieldWidth / 2) * (1 + fieldWidth) , RoboDir::WEST };
-	std::vector<TileMap::TileType> fieldArray;
+	//std::vector<TileMap::TileType> fieldMap;
+	std::unordered_map<size_t, TileMap::TileType> fieldMap;
 	//DebugControls& dc;
 	std::queue<Robo::Action> instructionQueue;
 };

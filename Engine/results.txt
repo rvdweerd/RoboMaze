@@ -4,505 +4,505 @@
  [102387582]
 Result: Success
 Moves taken:440997
-Time taken:0.516225
+Time taken:0.59298
 
  [1997510323]
 Result: Success
 Moves taken:1636
-Time taken:0.00259058
+Time taken:0.00298708
 
  [2554398970]
 Result: Success
 Moves taken:8860
-Time taken:0.0147826
+Time taken:0.0128402
 
  [2864479661]
 Result: Success
 Moves taken:12737
-Time taken:0.034621
+Time taken:0.0526563
 
  [1937443306]
 Result: Success
 Moves taken:10497
-Time taken:0.0136125
+Time taken:0.0295958
 
  [3557289916]
 Result: Success
 Moves taken:734
-Time taken:0.0011252
+Time taken:0.000709601
 
  [3457369034]
 Result: Success
 Moves taken:32653
-Time taken:0.0512754
+Time taken:0.066601
 
  [4202800666]
 Result: Success
 Moves taken:5
-Time taken:3.5e-06
+Time taken:5.5e-06
 
  [1125376449]
 Result: Success
 Moves taken:2408
-Time taken:0.00431985
+Time taken:0.00874185
 
  [2569682891]
 Result: Success
 Moves taken:10092
-Time taken:0.0225991
+Time taken:0.0301737
 
  [1610127572]
 Result: Success
 Moves taken:24823
-Time taken:0.0666436
+Time taken:0.0759386
 
  [1595009332]
 Result: Success
 Moves taken:17592
-Time taken:0.0361957
+Time taken:0.0541759
 
  [858989589]
 Result: Success
 Moves taken:84
-Time taken:0.0001176
+Time taken:0.0002451
 
  [3012060773]
 Result: Success
 Moves taken:1957
-Time taken:0.00290487
+Time taken:0.00813716
 
  [2913607392]
 Result: Success
 Moves taken:16117
-Time taken:0.0381719
+Time taken:0.0564418
 
  [3404699342]
 Result: Success
 Moves taken:40650
-Time taken:0.0847133
+Time taken:0.132506
 
  [1450875981]
 Result: Success
 Moves taken:74457
-Time taken:0.166297
+Time taken:0.195711
 
  [1286856395]
 Result: Success
 Moves taken:57891
-Time taken:0.12881
+Time taken:0.0812622
 
  [1693725766]
 Result: Success
 Moves taken:38317
-Time taken:0.0455976
+Time taken:0.0427286
 
  [3461798906]
 Result: Success
 Moves taken:8575
-Time taken:0.0106699
+Time taken:0.00859085
 
  [1938916038]
 Result: Success
 Moves taken:15016
-Time taken:0.0176905
+Time taken:0.018145
 
  [3715037282]
 Result: Success
 Moves taken:21909
-Time taken:0.0235713
+Time taken:0.0234585
 
  [645980260]
 Result: Success
 Moves taken:3957
-Time taken:0.00644935
+Time taken:0.00376738
 
  [2463502203]
 Result: Success
 Moves taken:1718
-Time taken:0.0015449
+Time taken:0.0017222
 
  [1671319445]
 Result: Success
 Moves taken:6
-Time taken:3.7e-06
+Time taken:3.1e-06
 
  [3568484332]
 Result: Success
 Moves taken:33508
-Time taken:0.0836785
+Time taken:0.0694135
 
  [498198767]
 Result: Success
 Moves taken:5008
-Time taken:0.00540089
+Time taken:0.00733854
 
  [2819637258]
 Result: Success
 Moves taken:1259
-Time taken:0.0012704
+Time taken:0.001167
 
  [2392107317]
 Result: Success
 Moves taken:70
-Time taken:4.77e-05
+Time taken:4.81e-05
 
  [2746353511]
 Result: Success
 Moves taken:27484
-Time taken:0.0448202
+Time taken:0.0304239
 
  [3495694715]
 Result: Success
 Moves taken:1088
-Time taken:0.0018827
+Time taken:0.0011206
 
  [3329606682]
 Result: Success
 Moves taken:2680
-Time taken:0.00601694
+Time taken:0.00279745
 
  [969216596]
 Result: Success
 Moves taken:1867
-Time taken:0.00299568
+Time taken:0.00184891
 
  [840657454]
 Result: Success
 Moves taken:23789
-Time taken:0.0475851
+Time taken:0.0319314
 
  [3181150994]
 Result: Success
 Moves taken:5203
-Time taken:0.0098373
+Time taken:0.0265171
 
  [3436176088]
 Result: Success
 Moves taken:18362
-Time taken:0.0432845
+Time taken:0.0578267
 
  [379860878]
 Result: Success
 Moves taken:29612
-Time taken:0.0744552
+Time taken:0.118637
 
  [1217183652]
 Result: Success
 Moves taken:306
-Time taken:0.0004959
+Time taken:0.0004508
 
  [1533527775]
 Result: Success
 Moves taken:20231
-Time taken:0.0391706
+Time taken:0.0247103
 
  [2253957693]
 Result: Success
 Moves taken:583
-Time taken:0.0009518
+Time taken:0.000791801
 
  [132344800]
 Result: Success
 Moves taken:5386
-Time taken:0.0116356
+Time taken:0.0120037
 
  [1096079921]
 Result: Success
 Moves taken:23602
-Time taken:0.0512676
+Time taken:0.0402438
 
  [1418338455]
 Result: Success
 Moves taken:85493
-Time taken:0.176822
+Time taken:0.171538
 
  [1965601455]
 Result: Success
 Moves taken:4856
-Time taken:0.00877227
+Time taken:0.00597931
 
  [2583159450]
 Result: Success
 Moves taken:5
-Time taken:2.6e-06
+Time taken:4.6e-06
 
  [219912782]
 Result: Success
 Moves taken:5964
-Time taken:0.0127473
+Time taken:0.00853612
 
  [3158325134]
 Result: Success
 Moves taken:6501
-Time taken:0.0124861
+Time taken:0.00907387
 
  [957067462]
 Result: Success
 Moves taken:4087
-Time taken:0.00837213
+Time taken:0.00755116
 
  [3024269510]
 Result: Success
 Moves taken:17322
-Time taken:0.0336648
+Time taken:0.0239178
 
  [3080346939]
 Result: Success
 Moves taken:117761
-Time taken:0.3979
+Time taken:0.390285
 
  [1122401503]
 Result: Success
 Moves taken:6647
-Time taken:0.00809085
+Time taken:0.0120872
 
  [1068692392]
 Result: Success
 Moves taken:357
-Time taken:0.0005236
+Time taken:0.0005568
 
  [4080607346]
 Result: Success
 Moves taken:18593
-Time taken:0.0352398
+Time taken:0.0265124
 
  [3539045119]
 Result: Success
 Moves taken:11
-Time taken:1.38e-05
+Time taken:1.3e-05
 
  [922084334]
 Result: Success
 Moves taken:13288
-Time taken:0.0429093
+Time taken:0.0259609
 
  [948265128]
 Result: Success
 Moves taken:24718
-Time taken:0.050226
+Time taken:0.0294037
 
  [3502683907]
 Result: Success
 Moves taken:26443
-Time taken:0.0557604
+Time taken:0.0314804
 
  [2043465104]
 Result: Success
 Moves taken:247
-Time taken:0.0004227
+Time taken:0.00024
 
  [2216484264]
 Result: Success
 Moves taken:15299
-Time taken:0.032134
+Time taken:0.0202111
 
  [3596347302]
 Result: Success
 Moves taken:86
-Time taken:0.0001206
+Time taken:0.0001042
 
  [3302053262]
 Result: Success
 Moves taken:27100
-Time taken:0.0591417
+Time taken:0.0346375
 
  [4154526112]
 Result: Success
 Moves taken:30985
-Time taken:0.106712
+Time taken:0.0567242
 
  [3023627103]
 Result: Success
 Moves taken:15839
-Time taken:0.0444914
+Time taken:0.0316572
 
  [2673559633]
 Result: Success
 Moves taken:5056
-Time taken:0.00970297
+Time taken:0.00605237
 
  [2483521368]
 Result: Success
 Moves taken:129
-Time taken:0.0002396
+Time taken:0.0001402
 
  [1151659786]
 Result: Success
 Moves taken:3062
-Time taken:0.00537001
+Time taken:0.00300213
 
  [1752034436]
 Result: Success
 Moves taken:1936
-Time taken:0.00419561
+Time taken:0.00192731
 
  [3976622139]
 Result: Success
 Moves taken:1322
-Time taken:0.0019793
+Time taken:0.0012985
 
  [3268653628]
 Result: Success
 Moves taken:27883
-Time taken:0.0543053
+Time taken:0.0304131
 
  [3478572385]
 Result: Success
 Moves taken:19456
-Time taken:0.0447887
+Time taken:0.0239427
 
  [3100861772]
 Result: Success
 Moves taken:16861
-Time taken:0.0305876
+Time taken:0.0170622
 
  [4139932184]
 Result: Success
 Moves taken:22076
-Time taken:0.0456747
+Time taken:0.022085
 
  [2225117635]
 Result: Success
 Moves taken:1348
-Time taken:0.00269967
+Time taken:0.0016597
 
  [904307228]
 Result: Success
 Moves taken:5697
-Time taken:0.0112332
+Time taken:0.00647643
 
  [3556370621]
 Result: Success
 Moves taken:6179
-Time taken:0.0134193
+Time taken:0.0117316
 
  [3818494866]
 Result: Success
 Moves taken:6848
-Time taken:0.0125836
+Time taken:0.00748225
 
  [3377318040]
 Result: Success
 Moves taken:28338
-Time taken:0.0686878
+Time taken:0.042238
 
  [1581074935]
 Result: Success
 Moves taken:17311
-Time taken:0.0371068
+Time taken:0.0184488
 
  [1618954301]
 Result: Success
 Moves taken:8197
-Time taken:0.0194537
+Time taken:0.0118021
 
  [3278308933]
 Result: Success
 Moves taken:22132
-Time taken:0.0413184
+Time taken:0.0258788
 
  [2968361775]
 Result: Success
 Moves taken:11955
-Time taken:0.0244262
+Time taken:0.013729
 
  [520671316]
 Result: Success
 Moves taken:32344
-Time taken:0.102124
+Time taken:0.0635546
 
  [2492024520]
 Result: Success
 Moves taken:48234
-Time taken:0.127965
+Time taken:0.07826
 
  [411883491]
 Result: Success
 Moves taken:276
-Time taken:0.0005345
+Time taken:0.000328
 
  [1435774589]
 Result: Success
 Moves taken:31336
-Time taken:0.0674542
+Time taken:0.0644013
 
  [3663729021]
 Result: Success
 Moves taken:26992
-Time taken:0.0723099
+Time taken:0.0570106
 
  [3225224251]
 Result: Success
 Moves taken:392
-Time taken:0.0006378
+Time taken:0.0003732
 
  [3287200511]
 Result: Success
 Moves taken:2956
-Time taken:0.00476182
+Time taken:0.00280045
 
  [2674818907]
 Result: Success
 Moves taken:184
-Time taken:0.0002957
+Time taken:0.0001987
 
  [4131673153]
 Result: Success
 Moves taken:9124
-Time taken:0.0342171
+Time taken:0.0291575
 
  [1876309752]
 Result: Success
 Moves taken:2881
-Time taken:0.00490653
+Time taken:0.00276945
 
  [1078204537]
 Result: Success
 Moves taken:96013
-Time taken:0.421229
+Time taken:0.318934
 
  [1374767077]
 Result: Success
 Moves taken:9109
-Time taken:0.018644
+Time taken:0.0325563
 
  [1317357815]
 Result: Success
 Moves taken:38365
-Time taken:0.0877679
+Time taken:0.0881412
 
  [2362393455]
 Result: Success
 Moves taken:17221
-Time taken:0.031604
+Time taken:0.059024
 
  [3039102034]
 Result: Success
 Moves taken:5
-Time taken:4.2e-06
+Time taken:9.3e-06
 
  [2974715001]
 Result: Success
 Moves taken:8332
-Time taken:0.0180616
+Time taken:0.0391775
 
  [3857711557]
 Result: Success
 Moves taken:17105
-Time taken:0.0381628
+Time taken:0.0536002
 
  [703134284]
 Result: Success
 Moves taken:28298
-Time taken:0.0757331
+Time taken:0.0932384
 
  [823136310]
 Result: Success
 Moves taken:1121
-Time taken:0.00320859
+Time taken:0.0020331
 
 
 ========================================
 Success Rate: 100/100
 Total Moves: 2041402
-Total Time: 4.33928
+Total Time: 4.04481
